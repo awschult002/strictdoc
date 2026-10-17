@@ -1,0 +1,17 @@
+#
+# @relation(SDOC-LLR-220, scope=file)
+#
+
+REQUIRES: TKINTER_AVAILABLE
+
+RUN: %expect_exit 1 %strictdoc launcher --no-window | filecheck %s --dump-input=fail --check-prefix CHECK-NO-PROJECT
+CHECK-NO-PROJECT: error: The --no-window option requires --project or --new-project.
+
+RUN: %expect_exit 1 %strictdoc launcher --no-window --project %T/does_not_exist | filecheck %s --dump-input=fail --check-prefix CHECK-MISSING-PROJECT
+CHECK-MISSING-PROJECT: error: Provided project path does not exist or is not a folder: {{.*}}does_not_exist
+
+RUN: %expect_exit 2 %strictdoc launcher --project %S --new-project %T/new_project | filecheck %s --dump-input=fail --check-prefix CHECK-EXCLUSIVE
+CHECK-EXCLUSIVE: argument --new-project: not allowed with argument --project
+
+RUN: %expect_exit 2 %strictdoc launcher --new-project %T/new_project --template unknown | filecheck %s --dump-input=fail --check-prefix CHECK-TEMPLATE
+CHECK-TEMPLATE: argument --template: invalid choice: 'unknown'
