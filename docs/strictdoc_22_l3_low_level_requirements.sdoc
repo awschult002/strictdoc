@@ -861,6 +861,98 @@ Example of the "new" command usage:
 
 [[/SECTION]]
 
+[[SECTION]]
+MID: bf008b909c9145edb7b1f1c6635a0193
+TITLE: "launcher" command
+
+[REQUIREMENT]
+MID: 3f2520152e4a48dd9310e4444b51bb75
+UID: SDOC-LLR-219
+STATUS: Active
+TITLE: Starter project templates
+STATEMENT: >>>
+StrictDoc shall provide the following starter project templates:
+
+- ``hello_world``: the artifacts that are specified in [LINK: SDOC-LLR-208].
+- ``empty``: a ``strictdoc_config.py`` file that reads SDoc documents from the
+  ``docs/`` folder, and a ``docs/requirements.sdoc`` file that contains one
+  document without nodes.
+
+Both templates shall write the project title to ``strictdoc_config.py``. All
+documents shall have ``ENABLE_MID: True`` and valid unique MID identifiers.
+
+If a file of the template already exists in the target folder, StrictDoc
+shall not create the project and shall report all existing files.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SRS-208
+
+[REQUIREMENT]
+MID: 12efd73b2b5e4a2496bb96aedb947fcf
+UID: SDOC-LLR-220
+STATUS: Active
+TITLE: Launcher start dialog
+STATEMENT: >>>
+When the "launcher" command starts without the ``--project`` or the
+``--new-project`` option, the launcher shall show a start dialog with the
+following choices:
+
+- Open an existing project folder with the folder selection dialog of the
+  operating system.
+- Create a new project. The user selects a starter template from
+  [LINK: SDOC-LLR-219], a parent folder, and a project name.
+- Open one of the five most recently used projects.
+
+When the user opens or creates a project, the launcher shall start the web
+server for the project. When the server is ready, the launcher shall open the
+project in the default browser.
+
+If the selected folder has no StrictDoc config file and no SDoc document, the
+launcher shall ask the user to confirm before it opens the folder.
+
+The ``--project`` and ``--new-project`` options shall skip the start dialog.
+The ``--no-browser`` option shall prevent the launcher from opening the
+browser.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SRS-208
+
+[REQUIREMENT]
+MID: f41e27c71e8d4a468c9102161625e126
+UID: SDOC-LLR-221
+STATUS: Active
+TITLE: Launcher server life cycle
+STATEMENT: >>>
+The launcher shall start the web server on the host ``127.0.0.1``.
+
+The launcher shall select the server port in this order:
+
+1. The ``--port`` option.
+2. The ``server_port`` setting of the project config.
+3. The default port ``5111``.
+
+If another program uses the selected port, the launcher shall use the next
+free port.
+
+The launcher shall consider the server ready when the server responds to an
+HTTP request.
+
+When the user stops the server, closes the launcher window, or the launcher
+process receives SIGTERM or SIGINT, the launcher shall stop the server and all
+processes that the server started.
+<<<
+RATIONALE: >>>
+A server that continues to run after the launcher closes blocks the port and
+keeps the project files open.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SRS-208
+
+[[/SECTION]]
+
 [[/SECTION]]
 
 [[SECTION]]

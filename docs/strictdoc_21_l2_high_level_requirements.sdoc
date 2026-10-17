@@ -2031,6 +2031,27 @@ RELATIONS:
 - TYPE: Parent
   VALUE: SDOC-SSS-97
 
+[REQUIREMENT]
+MID: 81347743a3d04588944cb75fd8b3f63b
+UID: SDOC-SRS-208
+STATUS: Active
+TITLE: Desktop launcher
+STATEMENT: >>>
+StrictDoc shall provide a desktop launcher that opens an existing project or
+creates a new project, and then starts the web server for that project. The
+user shall not need the command line for these actions.
+<<<
+RATIONALE: >>>
+Many users of a requirements tool, for example systems engineers, do not use
+a command line. A desktop launcher lets these users start working with
+StrictDoc's web interface.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SSS-31
+- TYPE: Parent
+  VALUE: SDOC-SSS-79
+
 [[SECTION]]
 MID: 821c01118a9643a188a4ecc5b0cec6a5
 UID: SECTION-SSRS-Strict-mode-by-default
