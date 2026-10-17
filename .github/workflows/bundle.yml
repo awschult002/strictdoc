@@ -24,6 +24,10 @@ on:
       - "strictdoc/helpers/frozen.py"
       - "strictdoc/helpers/parallelizer.py"
       - "strictdoc/cli/main.py"
+      - "strictdoc/commands/launcher_command.py"
+      - "strictdoc/commands/launcher_config.py"
+      - "strictdoc/core/project_templates.py"
+      - "strictdoc/features/launcher/**"
       - "strictdoc/features/html2pdf/pdf_print_driver.py"
       - "pyproject.toml"
       - "uv.lock"
@@ -118,9 +122,21 @@ jobs:
           fi
           echo "BUNDLE_TEST_PYTHON=$py" >> "$GITHUB_ENV"
 
+      # The launcher tests open a Tk window. Linux runners have no display,
+      # so the suite runs in a virtual X server there.
+      - name: Install a virtual X server
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
       - name: Bundle test suite, smoke tier
         run: |
-          bash tests/bundle/run_bundle_tests.sh "${{ steps.build.outputs.exe }}" smoke
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a bash tests/bundle/run_bundle_tests.sh "${{ steps.build.outputs.exe }}" smoke
+          else
+            bash tests/bundle/run_bundle_tests.sh "${{ steps.build.outputs.exe }}" smoke
+          fi
 
       - name: Upload the bundle test results
         if: ${{ !cancelled() }}
@@ -163,7 +179,7 @@ jobs:
           ls -l bundles
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --title "StrictDoc $TAG" --verify-tag \
-              --notes "Self-contained StrictDoc bundles built with PyInstaller. Unzip and run strictdoc (strictdoc.exe on Windows); no Python installation is needed. HTML2PDF export needs Google Chrome installed."
+              --notes "Self-contained StrictDoc bundles built with PyInstaller. Unzip and run strictdoc (strictdoc.exe on Windows); no Python installation is needed. The desktop launcher is strictdoc_launcher (strictdoc_launcher.exe on Windows, StrictDoc.app on macOS). HTML2PDF export needs Google Chrome installed."
           fi
           mapfile -t zips < <(find bundles -type f -name 'strictdoc-*.zip')
           if [ "${#zips[@]}" -ne 3 ]; then

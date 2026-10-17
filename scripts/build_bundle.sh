@@ -8,6 +8,11 @@
 # Output (relative to the repository root):
 #   dist/strictdoc-<VERSION>-<PLATFORM>/          onedir bundle
 #   dist/strictdoc-<VERSION>-<PLATFORM>/strictdoc[.exe]
+#                                                 command-line interface
+#   dist/strictdoc-<VERSION>-<PLATFORM>/strictdoc_launcher[.exe]
+#                                                 desktop launcher
+#   dist/strictdoc-<VERSION>-<PLATFORM>/StrictDoc.app
+#                                                 desktop launcher app (macOS)
 #   dist/strictdoc-<VERSION>-<PLATFORM>.zip       the same, zipped
 #
 # VERSION defaults to __version__ from strictdoc/__init__.py. A leading "v"
@@ -129,7 +134,8 @@ fi
 # PyInstaller.
 #
 log "Running PyInstaller"
-rm -rf build/pyinstaller dist/strictdoc "dist/$NAME" "dist/$NAME.zip"
+rm -rf build/pyinstaller dist/strictdoc dist/strictdoc-app dist/StrictDoc.app \
+  "dist/$NAME" "dist/$NAME.zip"
 # Keep __pycache__ out of the source tree during analysis.
 export PYTHONPYCACHEPREFIX="$ROOT/build/pycache"
 "$VENV_PY" -m PyInstaller \
@@ -141,11 +147,33 @@ export PYTHONPYCACHEPREFIX="$ROOT/build/pycache"
   scripts/strictdoc.spec
 
 mv dist/strictdoc "dist/$NAME"
+if [ "$OS" = macos ]; then
+  # The spec builds the app from its own COLLECT in dist/strictdoc-app.
+  mv dist/StrictDoc.app "dist/$NAME/StrictDoc.app"
+  rm -rf dist/strictdoc-app
+fi
 
 EXE="dist/$NAME/strictdoc"
-[ "$OS" = windows ] && EXE="$EXE.exe"
+LAUNCHER="dist/$NAME/strictdoc_launcher"
+if [ "$OS" = windows ]; then
+  EXE="$EXE.exe"
+  LAUNCHER="$LAUNCHER.exe"
+fi
 log "Checking $EXE"
 "$EXE" version
+log "Checking $LAUNCHER"
+[ -f "$LAUNCHER" ] || { echo "error: missing $LAUNCHER" >&2; exit 1; }
+# The launcher runs StrictDoc commands as "strictdoc_launcher _strictdoc
+# <args>". The output goes to a file: a windowed executable on Windows gets
+# no console, but it gets the file as its standard output.
+"$LAUNCHER" _strictdoc version >build/launcher_version.txt 2>&1
+cat build/launcher_version.txt
+if [ "$OS" = macos ]; then
+  APP_LAUNCHER="dist/$NAME/StrictDoc.app/Contents/MacOS/strictdoc_launcher"
+  [ -f "$APP_LAUNCHER" ] || { echo "error: missing $APP_LAUNCHER" >&2; exit 1; }
+  "$APP_LAUNCHER" _strictdoc version >build/launcher_version.txt 2>&1
+  cat build/launcher_version.txt
+fi
 
 log "Zipping"
 # Like "zip -ry": symlinks (e.g. the numpy/scipy .libs on Linux) are stored as
@@ -183,5 +211,6 @@ if [ -n "${GITHUB_OUTPUT:-}" ]; then
     echo "dir=dist/$NAME"
     echo "zip=dist/$NAME.zip"
     echo "exe=$EXE"
+    echo "launcher=$LAUNCHER"
   } >>"$GITHUB_OUTPUT"
 fi

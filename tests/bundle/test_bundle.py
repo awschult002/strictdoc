@@ -655,3 +655,214 @@ def test_bnd_04_launcher_starts(sd, work):
     text = log.read_text(errors="replace")
     assert alive, f"launcher exited early ({p.returncode}):\n{text[-3000:]}"
     assert "Traceback" not in text, text[-3000:]
+
+
+# ----------------------------------------------------------------------------
+# BT-LCH: the desktop launcher executable (strictdoc_launcher, StrictDoc.app)
+# ----------------------------------------------------------------------------
+LAUNCHER_NAME = "strictdoc_launcher.exe" if IS_WINDOWS else "strictdoc_launcher"
+IS_MACOS = sys.platform == "darwin"
+
+
+def launcher_path(sd):
+    if not sd.is_bundle:
+        pytest.skip("bundle only")
+    path = sd.bundle_path.parent / LAUNCHER_NAME
+    assert path.is_file(), f"no launcher executable next to the bundle: {path}"
+    return path
+
+
+def app_path(sd):
+    return sd.bundle_path.parent / "StrictDoc.app"
+
+
+def wait_for_url(url, proc, log, timeout=180):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if proc.poll() is not None:
+            raise AssertionError(
+                f"launcher exited ({proc.returncode}):\n"
+                + log.read_text(errors="replace")[-4000:])
+        try:
+            with urllib.request.urlopen(url, timeout=5) as response:
+                return response.status, response.read().decode("utf-8")
+        except Exception:
+            time.sleep(1)
+    raise AssertionError(f"{url} did not respond:\n"
+                         + log.read_text(errors="replace")[-4000:])
+
+
+def port_has_listener(port):
+    """
+    True if a process accepts connections on the port. A bind test does not
+    work here: the closed test connections keep the port in TIME_WAIT.
+    """
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(2)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def wait_until_port_is_free(port, timeout=20):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if not port_has_listener(port):
+            return True
+        time.sleep(0.5)
+    return False
+
+
+class Launcher:
+    """A launcher process. The log file receives stdout and stderr."""
+
+    def __init__(self, exe, work, *args):
+        from conftest import clean_env
+        self.port = free_port()
+        self.base = f"http://127.0.0.1:{self.port}"
+        self.log = work / f"launcher-{self.port}.log"
+        # HOME keeps the launcher settings (recent projects) in the scratch
+        # folder on Linux and macOS.
+        env = clean_env({"HOME": str(work)})
+        with open(self.log, "w") as log_file:
+            self.proc = subprocess.Popen(
+                [str(exe), *map(str, args), "--port", str(self.port),
+                 "--no-browser"],
+                cwd=work, stdout=log_file, stderr=subprocess.STDOUT, env=env)
+
+    def stop(self):
+        """
+        Stop the launcher like the operating system does at logout: SIGTERM
+        on Linux and macOS, TerminateProcess on Windows. Return the exit code.
+        """
+        if self.proc.poll() is None:
+            if IS_WINDOWS:
+                self.proc.terminate()
+            else:
+                self.proc.send_signal(signal.SIGTERM)
+            try:
+                self.proc.wait(30)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
+                raise AssertionError(
+                    "launcher did not stop:\n" + self.text()[-4000:]
+                ) from None
+        return self.proc.returncode
+
+    def text(self):
+        return self.log.read_text(errors="replace")
+
+
+@pytest.mark.smoke
+def test_lch_01_launcher_runs_strictdoc_commands(sd):
+    exe = launcher_path(sd)
+    from conftest import clean_env
+    proc = subprocess.run([str(exe), "_strictdoc", "version"],
+                          capture_output=True, text=True, timeout=120,
+                          env=clean_env())
+    out = proc.stdout + proc.stderr
+    assert proc.returncode == 0, out
+    assert VERSION_RE.search(out), out
+
+
+@pytest.mark.smoke
+def test_lch_02_launcher_opens_a_project_without_a_window(sd, work):
+    exe = launcher_path(sd)
+    proj = copy_fixture(THREE_REQS, work / "project")
+    launcher = Launcher(exe, work, "--project", proj, "--no-window")
+    try:
+        status, html = wait_for_url(launcher.base + "/", launcher.proc,
+                                    launcher.log)
+        assert status == 200
+        assert "project/input.html" in html, html[-2000:]
+        assert f"StrictDoc server is ready: {launcher.base}/" in launcher.text()
+    finally:
+        launcher.stop()
+    assert wait_until_port_is_free(launcher.port), launcher.text()[-4000:]
+    assert "Traceback" not in launcher.text(), launcher.text()[-4000:]
+
+
+def test_lch_03_launcher_creates_a_project_without_a_window(sd, work):
+    exe = launcher_path(sd)
+    proj = work / "new project"
+    launcher = Launcher(exe, work, "--new-project", proj, "--template",
+                        "empty", "--no-window")
+    try:
+        status, _ = wait_for_url(launcher.base + "/", launcher.proc,
+                                 launcher.log)
+        assert status == 200
+    finally:
+        launcher.stop()
+    assert (proj / "strictdoc_config.py").is_file()
+    assert (proj / "docs" / "requirements.sdoc").is_file()
+    assert f"Created a new project: {proj}" in launcher.text()
+    assert wait_until_port_is_free(launcher.port), launcher.text()[-4000:]
+
+
+@pytest.mark.smoke
+def test_lch_04_launcher_window_starts_and_stops_the_server(sd, work):
+    """
+    The windowed launcher (StrictDoc.app on macOS) opens a project and starts
+    the server. When the launcher stops, the server stops too.
+    """
+    exe = launcher_path(sd)
+    if IS_MACOS:
+        exe = app_path(sd) / "Contents" / "MacOS" / "strictdoc_launcher"
+    if not IS_WINDOWS and not IS_MACOS and not os.environ.get("DISPLAY"):
+        pytest.skip("no DISPLAY")
+    proj = copy_fixture(THREE_REQS, work / "project")
+    launcher = Launcher(exe, work, "--project", proj)
+    try:
+        status, html = wait_for_url(launcher.base + "/", launcher.proc,
+                                    launcher.log)
+        assert status == 200
+        assert "project/input.html" in html, html[-2000:]
+        assert launcher.proc.poll() is None
+    finally:
+        launcher.stop()
+    assert wait_until_port_is_free(launcher.port), (
+        "the server still runs after the launcher stopped:\n"
+        + launcher.text()[-4000:])
+    assert "Traceback" not in launcher.text(), launcher.text()[-4000:]
+
+
+def _pe_subsystem(path):
+    """The Subsystem field of a Windows PE executable: 2 GUI, 3 console."""
+    data = Path(path).read_bytes()
+    pe_offset = int.from_bytes(data[0x3C:0x40], "little")
+    assert data[pe_offset:pe_offset + 4] == b"PE\0\0", path
+    # The optional header starts after the 4-byte signature and the 20-byte
+    # file header. Subsystem is at offset 68 in the optional header.
+    subsystem_offset = pe_offset + 4 + 20 + 68
+    return int.from_bytes(data[subsystem_offset:subsystem_offset + 2], "little")
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(not IS_WINDOWS, reason="Windows only")
+def test_lch_05_windows_launcher_has_no_console(sd):
+    exe = launcher_path(sd)
+    assert _pe_subsystem(exe) == 2, "strictdoc_launcher.exe is not a GUI program"
+    assert _pe_subsystem(sd.bundle_path) == 3, "strictdoc.exe is not a console program"
+
+
+@pytest.mark.smoke
+@pytest.mark.skipif(not IS_MACOS, reason="macOS only")
+def test_lch_06_macos_app_structure(sd):
+    import plistlib
+    if not sd.is_bundle:
+        pytest.skip("bundle only")
+    app = app_path(sd)
+    with open(app / "Contents" / "Info.plist", "rb") as plist_file:
+        info = plistlib.load(plist_file)
+    assert info["CFBundleIdentifier"] == "org.strictdoc.launcher", info
+    assert info["CFBundleExecutable"] == "strictdoc_launcher", info
+    assert info["CFBundlePackageType"] == "APPL", info
+    exe = app / "Contents" / "MacOS" / "strictdoc_launcher"
+    assert os.access(exe, os.X_OK), exe
+    from conftest import clean_env
+    proc = subprocess.run([str(exe), "_strictdoc", "version"],
+                          capture_output=True, text=True, timeout=120,
+                          env=clean_env())
+    out = proc.stdout + proc.stderr
+    assert proc.returncode == 0, out
+    assert VERSION_RE.search(out), out

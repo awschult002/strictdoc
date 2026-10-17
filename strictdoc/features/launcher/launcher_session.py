@@ -25,6 +25,7 @@ from strictdoc.core.project_templates import (
     PROJECT_TEMPLATE_HELLO_WORLD,
     create_project_template,
 )
+from strictdoc.helpers import frozen
 
 DEFAULT_SERVER_HOST = "127.0.0.1"
 DEFAULT_SERVER_PORT = 5111
@@ -205,8 +206,11 @@ def create_new_project(
 def get_strictdoc_command() -> List[str]:
     """
     Return the command that runs StrictDoc's command-line interface.
+
+    In a bundle, the command runs the bundled executable. See
+    strictdoc/helpers/frozen.py.
     """
-    return [sys.executable or "python", "-m", "strictdoc.cli.main"]
+    return frozen.get_strictdoc_command()
 
 
 def get_server_environment() -> dict[str, str]:
@@ -218,7 +222,7 @@ def get_server_environment() -> dict[str, str]:
     with the project folder as its working directory.
     """
     environment = {**os.environ, "PYTHONUNBUFFERED": "1"}
-    if getattr(sys, "frozen", False):
+    if frozen.is_frozen():
         return environment
     import strictdoc  # noqa: PLC0415
 
