@@ -1,0 +1,22 @@
+#
+# @relation(SDOC-LLR-219, SDOC-LLR-221, scope=file)
+#
+
+REQUIRES: TKINTER_AVAILABLE
+
+RUN: rm -rf %T/project
+RUN: %launcher_probe -- %strictdoc launcher --no-window --no-browser --port 5341 --new-project %T/project --template empty | filecheck %s --dump-input=fail
+CHECK: LAUNCHER: Created a new project: {{.*}}project
+CHECK: PROBE: server ready on 127.0.0.1
+CHECK: PROBE: GET / returned 200
+CHECK: PROBE: start page lists the requirements
+CHECK: PROBE: launcher stopped
+CHECK: PROBE: server port is free
+
+RUN: %check_exists --file "%T/project/strictdoc_config.py"
+RUN: %check_exists --file "%T/project/docs/requirements.sdoc"
+RUN: %cat %T/project/strictdoc_config.py | filecheck %s --dump-input=fail --check-prefix CHECK-CONFIG
+CHECK-CONFIG: project_title="project",
+
+RUN: %expect_exit 1 %strictdoc launcher --no-window --no-browser --new-project %T/project --template empty | filecheck %s --dump-input=fail --check-prefix CHECK-CONFLICT
+CHECK-CONFLICT: error: Refusing to overwrite existing StrictDoc project files:
