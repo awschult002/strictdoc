@@ -951,6 +951,31 @@ RELATIONS:
 - TYPE: Parent
   VALUE: SDOC-SRS-208
 
+[REQUIREMENT]
+MID: 282daec0141b4dc0ac57f700800264b0
+UID: SDOC-LLR-222
+STATUS: Active
+TITLE: Launcher executable in the PyInstaller bundle
+STATEMENT: >>>
+The PyInstaller bundle shall contain a launcher executable
+``strictdoc_launcher`` next to the ``strictdoc`` executable. On macOS, the
+bundle shall also contain the app ``StrictDoc.app`` with the launcher
+executable.
+
+On Windows, the launcher executable shall not open a console window.
+
+The launcher executable shall run StrictDoc commands, for example the
+server, with its own executable and the internal command ``_strictdoc``.
+<<<
+RATIONALE: >>>
+Users who do not use the command line start StrictDoc with a double-click.
+The launcher does not depend on the location of the ``strictdoc`` executable,
+so the macOS app can contain only the launcher.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SRS-208
+
 [[/SECTION]]
 
 [[/SECTION]]
