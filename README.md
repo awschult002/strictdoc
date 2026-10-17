@@ -43,6 +43,20 @@ strictdoc-0.30.1-windows-x86_64\strictdoc.exe server my_docs
 
 To call it as plain `strictdoc`, add the folder to `PATH`.
 
+The bundle also has a desktop launcher for users who do not use the command
+line. The launcher opens or creates a project, starts the server and opens
+the project in the browser:
+
+- Windows: double-click `strictdoc_launcher.exe`. The launcher has no
+  console window.
+- macOS: double-click `StrictDoc.app`. Move the app to `Applications` if you
+  want. The app contains its own copy of StrictDoc.
+- Linux: run `strictdoc_launcher`.
+
+When you close the launcher window, the launcher stops the server. See the
+"Desktop launcher" section of the user guide for the start dialog and the
+project templates.
+
 HTML2PDF export (`--formats html2pdf`) needs Google Chrome installed; the
 bundle does not include it. StrictDoc detects the installed Chrome and, on
 the first PDF export, downloads the matching ChromeDriver into a per-user
@@ -60,8 +74,21 @@ strictdoc export my_docs --formats html2pdf \
 The `HTML2PDF4DOC_CHROME_BINARY` environment variable also sets the Chrome
 binary.
 
-On macOS, the bundle is not signed. If macOS blocks it after download, run
-`xattr -dr com.apple.quarantine strictdoc-<version>-macos-arm64`.
+On macOS, the bundle is not signed and not notarized. When you open
+`StrictDoc.app` for the first time, macOS shows a message that it cannot
+verify the app. To open the app:
+
+1. Click `Done` in the message.
+2. Open `System Settings` > `Privacy & Security`.
+3. In the `Security` section, find the message about `StrictDoc.app` and click
+   `Open Anyway`.
+4. Confirm with your password and click `Open Anyway` again.
+
+macOS remembers this choice for this copy of the app. On older macOS
+versions, Control-click the app, select `Open` and then click `Open`.
+
+For the command-line executable, or to allow the whole folder in one step,
+run `xattr -dr com.apple.quarantine strictdoc-<version>-macos-arm64`.
 
 To build a bundle from a checkout (Linux, macOS, or Git Bash on Windows),
 run the build script, then the smoke tests against the result:
