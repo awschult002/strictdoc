@@ -1,5 +1,6 @@
 # ruff: noqa: F821
 
+import importlib.util
 import os
 import shutil
 from typing import Any
@@ -68,6 +69,12 @@ config.substitutions.append(
     )
 )
 config.substitutions.append(
+    (
+        "%launcher_probe",
+        f'python "{current_dir}/tests/integration/launcher_probe.py"',
+    )
+)
+config.substitutions.append(
     ("%mkdir", f'python "{current_dir}/tests/integration/mkdir.py"')
 )
 config.substitutions.append(
@@ -82,6 +89,13 @@ config.suffixes = [".itest"]
 config.is_windows = lit_config.isWindows
 if not lit_config.isWindows:
     config.available_features.add("PLATFORM_IS_NOT_WINDOWS")
+
+# The "launcher" command is only available when Python has Tk support.
+if (
+    importlib.util.find_spec("tkinter") is not None
+    and importlib.util.find_spec("_tkinter") is not None
+):
+    config.available_features.add("TKINTER_AVAILABLE")
 
 if shutil.which("nix") is not None:
     config.available_features.add("NIX_AVAILABLE")

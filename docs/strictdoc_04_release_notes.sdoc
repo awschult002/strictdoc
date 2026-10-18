@@ -50,6 +50,25 @@ releases:
 <<<
 
 [[SECTION]]
+MID: 075053bdc64242158c67f8041d272ac8
+TITLE: Unreleased
+
+[TEXT]
+MID: 310b180b4d87405783f7bbeddc7ec811
+STATEMENT: >>>
+This release contains the following enhancements:
+
+1\) The experimental desktop launcher (``strictdoc launcher``) now opens with
+a start dialog. The dialog opens an existing or recent project, or creates a
+new project from the ``hello_world`` or ``empty`` starter template. The
+launcher then starts the server on a free port and opens the project in the
+browser. When the launcher closes, it stops the server and all processes that
+the server started.
+<<<
+
+[[/SECTION]]
+
+[[SECTION]]
 MID: 94dfec2aad924748bc13f9dff81965ca
 TITLE: 0.30.2 (2026-10-09)
 
