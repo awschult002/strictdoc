@@ -1,6 +1,15 @@
+"""
+Tk-based desktop launcher.
+
+@relation(SDOC-SRS-208, SDOC-LLR-220, SDOC-LLR-221, scope=file)
+"""
+
+import gc
 import json
 import os
+import queue
 import re
+import signal
 import subprocess
 import sys
 import threading
@@ -9,13 +18,30 @@ import webbrowser
 from collections.abc import Callable
 from importlib.resources import files
 from tkinter import filedialog, messagebox, ttk
-from typing import Any
+from typing import Any, Dict
 
 import toml
 
 from strictdoc import __version__
 from strictdoc.features.launcher import git_action
-from strictdoc.helpers.frozen import get_strictdoc_command
+from strictdoc.features.launcher.launcher_session import (
+    DEFAULT_SERVER_HOST,
+    MAX_RECENT_PROJECTS,
+    LauncherError,
+    LauncherOptions,
+    ServerExitedError,
+    ServerProcess,
+    add_recent_project,
+    create_new_project,
+    find_free_port,
+    get_preferred_port,
+    get_strictdoc_command,
+    normalize_recent_projects,
+)
+from strictdoc.features.launcher.start_dialog import (
+    NewProjectDialog,
+    StartDialog,
+)
 
 STRICTDOC_RES = files("strictdoc")
 
@@ -50,11 +76,15 @@ class StrictDocLauncher(tk.Tk):
     launcher_settings_filename = ".strictdoc_launcher.json"
     launcher_registry_key = r"Software\StrictDoc\Launcher"
     launcher_registry_value = "settings_json"
-    max_recent_workspaces = 5
+    max_recent_workspaces = MAX_RECENT_PROJECTS
     log_text_width_chars = 160
 
-    def __init__(self, initial_workspace: str | None = None) -> None:
+    def __init__(self, options: LauncherOptions | None = None) -> None:
         super().__init__()
+        self._launcher_options: LauncherOptions = (
+            options if options is not None else LauncherOptions()
+        )
+        initial_workspace = self._launcher_options.project_path
         self.title("StrictDoc Launcher")
         self._collapsed_min_width: int = self.min_width
         self._collapsed_min_height: int = self.min_height
@@ -100,16 +130,26 @@ class StrictDocLauncher(tk.Tk):
         self.workspace_dir: str | None = None
         self._workspace_project_config = None
         self._recent_workspaces: list[str] = self._load_recent_workspaces()
-        self.server_process: subprocess.Popen[str] | None = None
+        self.server_process: ServerProcess | None = None
         self._log_thread: threading.Thread | None = None
         self._server_ready = False
+        # Set when the user stops the server, so that the readiness check
+        # running in the background can give up.
+        self._server_stop_requested = threading.Event()
+        # Open the browser once when the server is ready, even if the
+        # "Auto open browser" preference is off. Used when the user opens or
+        # creates a project from the start dialog or the command line.
+        self._open_browser_when_ready = False
+        # Background threads must not call Tk directly. They put callbacks
+        # into this queue, and the Tk main loop runs them.
+        self._ui_callbacks: queue.Queue[Callable[[], None]] = queue.Queue()
 
         # Export state
         self._export_in_progress = False
 
         # Server connection settings used both for starting the server
         # and for constructing the browser URL.
-        self.server_host: str = "127.0.0.1"
+        self.server_host: str = DEFAULT_SERVER_HOST
         self.server_port: int = 5111
 
         # Supported export formats (single selection), derived from
@@ -169,6 +209,9 @@ class StrictDocLauncher(tk.Tk):
         self._collapsed_min_height = self.winfo_reqheight()
         self.minsize(self._collapsed_min_width, self._collapsed_min_height)
 
+        self._process_ui_callbacks()
+        self.after(0, self._run_startup_flow)
+
     # UI -----------------------------------------------------------------
     def _build_ui(self) -> None:
         PADDING: dict[str, Any] = {"padx": 5, "pady": 5}
@@ -223,10 +266,20 @@ class StrictDocLauncher(tk.Tk):
             "<<ComboboxSelected>>", lambda _event: self._on_workspace_enter()
         )
 
+        workspace_buttons_frame = ttk.Frame(self)
+        workspace_buttons_frame.grid(row=1, column=2, sticky="we", **PADDING)
         self.workspace_select_btn = ttk.Button(
-            self, text="Select ...", command=self.choose_workspace
+            workspace_buttons_frame,
+            text="Select ...",
+            command=self.choose_workspace,
         )
-        self.workspace_select_btn.grid(row=1, column=2, sticky="we", **PADDING)
+        self.workspace_select_btn.grid(row=0, column=0, sticky="we")
+        self.new_project_btn = ttk.Button(
+            workspace_buttons_frame,
+            text="New ...",
+            command=self._open_new_project_dialog,
+        )
+        self.new_project_btn.grid(row=0, column=1, sticky="we", padx=(5, 0))
 
         # Maintenance controls
         maintenance_frame = ttk.LabelFrame(self, text="Maintenance")
@@ -585,25 +638,10 @@ class StrictDocLauncher(tk.Tk):
         launcher_section = settings.get("launcher", {})
         if not isinstance(launcher_section, dict):
             return []
-
-        value = launcher_section.get("recent_workspaces")
-        if not isinstance(value, list):
-            return []
-
-        result: list[str] = []
-        for entry in value:
-            if not isinstance(entry, str):
-                continue
-            normalized = entry.strip()
-            if not normalized:
-                continue
-            normalized = os.path.abspath(normalized)
-            if normalized in result:
-                continue
-            result.append(normalized)
-            if len(result) >= self.max_recent_workspaces:
-                break
-        return result
+        return normalize_recent_projects(
+            launcher_section.get("recent_workspaces"),
+            max_count=self.max_recent_workspaces,
+        )
 
     def _refresh_recent_workspaces_ui(self) -> None:
         if hasattr(self, "workspace_entry"):
@@ -616,24 +654,14 @@ class StrictDocLauncher(tk.Tk):
             launcher_section = {}
 
         normalized_workspace = os.path.abspath(workspace_path)
-        previous_workspaces = launcher_section.get("recent_workspaces", [])
-        previous_recent: list[str] = []
-        if isinstance(previous_workspaces, list):
-            for entry in previous_workspaces:
-                if not isinstance(entry, str):
-                    continue
-                normalized_entry = entry.strip()
-                if not normalized_entry:
-                    continue
-                normalized_entry = os.path.abspath(normalized_entry)
-                if normalized_entry in previous_recent:
-                    continue
-                previous_recent.append(normalized_entry)
-
-        recent_workspaces = [
+        recent_workspaces = add_recent_project(
+            normalize_recent_projects(
+                launcher_section.get("recent_workspaces"),
+                max_count=self.max_recent_workspaces,
+            ),
             normalized_workspace,
-            *[path for path in previous_recent if path != normalized_workspace],
-        ][: self.max_recent_workspaces]
+            max_count=self.max_recent_workspaces,
+        )
 
         launcher_section["last_workspace"] = normalized_workspace
         launcher_section["recent_workspaces"] = recent_workspaces
@@ -676,11 +704,12 @@ class StrictDocLauncher(tk.Tk):
         """Show and start the indeterminate export progress bar."""
         self._export_in_progress = True
 
-        self.export_btn.configure(state="disabled", text="Export läuft...")
+        self.export_btn.configure(state="disabled", text="Export running...")
 
         # Disable controls that should not be changed during export.
         self.workspace_entry.configure(state="disabled")
         self.workspace_select_btn.configure(state="disabled")
+        self.new_project_btn.configure(state="disabled")
         self.change_config_btn.configure(state="disabled")
         self.open_folder_btn.configure(state="disabled")
         self.repair_id_btn.configure(state="disabled")
@@ -1425,7 +1454,9 @@ class StrictDocLauncher(tk.Tk):
         editor.bind("<Escape>", lambda _event: on_cancel_advanced())
 
     def _is_server_running(self) -> bool:
-        return bool(self.server_process and self.server_process.poll() is None)
+        return (
+            self.server_process is not None and self.server_process.is_running()
+        )
 
     def _set_server_running_ui(self) -> None:
         """Disable config/workspace changes while the server is running."""
@@ -1440,6 +1471,7 @@ class StrictDocLauncher(tk.Tk):
         # while the server is active.
         self.workspace_entry.configure(state="disabled")
         self.workspace_select_btn.configure(state="disabled")
+        self.new_project_btn.configure(state="disabled")
         self.change_config_btn.configure(state="disabled")
         self.open_folder_btn.configure(state="disabled")
         self.repair_id_btn.configure(state="disabled")
@@ -1455,6 +1487,7 @@ class StrictDocLauncher(tk.Tk):
 
         self.workspace_entry.configure(state="normal")
         self.workspace_select_btn.configure(state="normal")
+        self.new_project_btn.configure(state="normal")
         self.change_config_btn.configure(state="normal")
         self.open_folder_btn.configure(state="normal")
         self.repair_id_btn.configure(state="normal")
@@ -1644,52 +1677,67 @@ class StrictDocLauncher(tk.Tk):
             return
         assert self.workspace_dir is not None
         workspace_dir = self.workspace_dir
-        if self.server_process and self.server_process.poll() is None:
+        if self._is_server_running():
             messagebox.showinfo(
                 "Server running", "The server is already running."
             )
             return
 
-        cmd: list[str] = [
-            *get_strictdoc_command(),
-            "--debug",
-            "server",
-            workspace_dir,
-            "--host",
-            self.server_host,
-            "--port",
-            str(self.server_port),
-        ]
-
         try:
-            # Start the server in a background thread so that the UI isn't blocked.
-            def run_server() -> None:
-                try:
-                    self.server_process = subprocess.Popen(
-                        cmd,
-                        cwd=workspace_dir,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        text=True,
-                        bufsize=1,
-                    )
-                    self._start_log_reader()
-                    self._schedule_server_poll()
-                except Exception as exc:  # noqa: BLE001
+            self.server_port = find_free_port(
+                self.server_host,
+                get_preferred_port(workspace_dir, self._launcher_options.port),
+            )
+            server_process = ServerProcess(
+                project_path=workspace_dir,
+                host=self.server_host,
+                port=self.server_port,
+            )
+            server_process.start()
+        except (LauncherError, OSError) as exc:
+            self._server_failed(exc)
+            return
 
-                    def _report_server_failed(error: Exception = exc) -> None:
-                        self._server_failed(error)
+        self.server_process = server_process
+        self._server_stop_requested.clear()
+        self._set_server_running_ui()
+        self.set_status(f"Starting the server on port {self.server_port}...")
+        self._start_log_reader()
+        self._start_readiness_check(server_process)
+        self._schedule_server_poll()
 
-                    self.after(0, _report_server_failed)
+    def _start_readiness_check(self, server_process: ServerProcess) -> None:
+        def wait_for_server() -> None:
+            try:
+                is_ready = server_process.wait_until_ready(
+                    is_cancelled=self._server_stop_requested.is_set
+                )
+            except ServerExitedError:
+                # _poll_server() reports the exit.
+                return
+            if is_ready:
+                self._call_in_ui_thread(
+                    lambda: self._on_server_ready(server_process)
+                )
 
-            threading.Thread(target=run_server, daemon=True).start()
+        # A closed dialog leaves Tk variables for the garbage collector. Tk
+        # variables call Tcl when Python deletes them. Collect them here in
+        # the UI thread, not later in the background thread.
+        gc.collect()
+        threading.Thread(target=wait_for_server, daemon=True).start()
 
-            # Update button/controls: now in "running" state.
-            self._set_server_running_ui()
-            self.set_status("Server started (see terminal for logs).")
-        except Exception as exc:  # noqa: BLE001
-            messagebox.showerror("Error starting server", str(exc))
-            self.set_status("Error starting server.")
+    def _on_server_ready(self, server_process: ServerProcess) -> None:
+        if server_process is not self.server_process:
+            return
+        self._server_ready = True
+        self.open_browser_btn.configure(state="normal", style="green.TButton")
+        self.set_status(f"Server is ready: {server_process.url}")
+        open_browser = self._open_browser_when_ready or bool(
+            self.auto_open_browser_var.get()
+        )
+        self._open_browser_when_ready = False
+        if open_browser and self._launcher_options.open_browser:
+            self.open_browser()
 
     def _server_failed(self, exc: Exception) -> None:
         messagebox.showerror(
@@ -1699,47 +1747,44 @@ class StrictDocLauncher(tk.Tk):
         self.set_status("Failed to start server.")
 
     def stop_server(self) -> None:
-        if not self._is_server_running():
-            # Mark log reader thread as finished
+        self._server_stop_requested.set()
+        server_process = self.server_process
+        self.server_process = None
+        if server_process is None or not server_process.is_running():
+            if server_process is not None:
+                server_process.stop()
             self._log_thread = None
             self._set_server_stopped_ui()
             self.set_status("Server is not running.")
             return
 
-        process = self.server_process
-        if process is None:
-            self._set_server_stopped_ui()
-            self.set_status("Server is not running.")
-            return
-
         try:
-            process.terminate()
-            process.wait(timeout=5)
+            server_process.stop()
             self.set_status("Server stopped.")
         except Exception:  # noqa: BLE001
-            try:
-                process.kill()
-            except Exception:  # noqa: BLE001
-                pass
             self.set_status("Server process was terminated.")
         finally:
-            self.server_process = None
             self._set_server_stopped_ui()
 
     # Log handling ------------------------------------------------------
     def _start_log_reader(self) -> None:
-        if not self.server_process or self.server_process.stdout is None:
+        if self.server_process is None:
+            return
+        stream = self.server_process.get_output_stream()
+        if stream is None:
             return
 
         def reader() -> None:
-            assert self.server_process is not None
-            assert self.server_process.stdout is not None
-            for line in self.server_process.stdout:
+            try:
+                for line in stream:
 
-                def _push_log_line(log_line: str = line) -> None:
-                    self._handle_server_log_line(log_line)
+                    def _push_log_line(log_line: str = line) -> None:
+                        self._handle_server_log_line(log_line)
 
-                self.after(0, _push_log_line)
+                    self._call_in_ui_thread(_push_log_line)
+            except (OSError, ValueError):
+                # The stream is closed when the server stops.
+                pass
 
         self._log_thread = threading.Thread(target=reader, daemon=True)
         self._log_thread.start()
@@ -1784,31 +1829,6 @@ class StrictDocLauncher(tk.Tk):
         except Exception:
             # Never let log-handling failures crash the launcher.
             pass
-
-        if self._server_ready:
-            return
-
-        normalized = text.strip().lower()
-        ready_markers = (
-            "uvicorn running on",
-            "application startup complete",
-            "started server process",
-        )
-        if any(marker in normalized for marker in ready_markers):
-            self._server_ready = True
-            self.open_browser_btn.configure(
-                state="normal", style="green.TButton"
-            )
-            self.set_status("Server is ready.")
-            try:
-                if (
-                    getattr(self, "auto_open_browser_var", None)
-                    and self.auto_open_browser_var.get()
-                ):
-                    # Ensure we call open_browser on the main thread.
-                    self.after(100, self.open_browser)
-            except Exception:
-                pass
 
     def _append_log(self, text: str) -> None:
         # keep log text widget editable only internally
@@ -1867,20 +1887,25 @@ class StrictDocLauncher(tk.Tk):
         self.after(1000, self._poll_server)
 
     def _poll_server(self) -> None:
-        if self.server_process is None:
+        server_process = self.server_process
+        if server_process is None:
             return
 
-        # If poll() is None, the process is still running.
-        return_code = self.server_process.poll()
+        process = server_process.process
+        return_code = process.poll() if process is not None else -1
         if return_code is None:
             self._schedule_server_poll()
             return
 
         # Process has exited without going through stop_server().
         self.server_process = None
+        self._server_stop_requested.set()
+        server_process.stop()
         self._set_server_stopped_ui()
         self._append_log(f"[SERVER EXITED] return code={return_code}\n")
         self.set_status("Server stopped.")
+        if return_code != 0 and not self._log_expanded:
+            self._toggle_log()
 
     def open_browser(self) -> None:
         """Open the default web browser pointing to the running server."""
@@ -1893,28 +1918,143 @@ class StrictDocLauncher(tk.Tk):
             )
             return
 
-        if not (self.server_process and self.server_process.poll() is None):
+        if self.server_process is None or not self._is_server_running():
             messagebox.showinfo(
                 "Server not running",
                 "Please start the server before opening the browser.",
             )
             return
 
-        url = f"http://{self.server_host}:{self.server_port}/"
+        url = self.server_process.url
         try:
             webbrowser.open(url)
             self.set_status(f"Opening browser: {url}")
         except Exception as exc:  # noqa: BLE001
             messagebox.showerror("Open browser failed", str(exc))
 
+    # Start dialog -------------------------------------------------------
+    def _run_startup_flow(self) -> None:
+        """
+        Open or create the project from the command line, or show the start
+        dialog.
+        """
+        if self._launcher_options.new_project_path is not None:
+            try:
+                project_path = create_new_project(
+                    self._launcher_options.template,
+                    self._launcher_options.new_project_path,
+                )
+            except LauncherError as launcher_error:
+                messagebox.showerror("New project", str(launcher_error))
+                return
+            self._open_project_and_start_server(project_path)
+            return
+        if self._launcher_options.project_path is not None:
+            self._open_project_and_start_server(
+                self._launcher_options.project_path
+            )
+            return
+        self._show_start_dialog()
+
+    def _show_start_dialog(self) -> None:
+        self.withdraw()
+
+        def _on_dismiss() -> None:
+            self.deiconify()
+
+        StartDialog(
+            self,
+            recent_projects=self._recent_workspaces,
+            on_open_project=self._open_project_and_start_server,
+            on_dismiss=_on_dismiss,
+        )
+
+    def _open_new_project_dialog(self) -> None:
+        NewProjectDialog(
+            self,
+            initial_parent_path=(
+                os.path.dirname(self.workspace_dir)
+                if self.workspace_dir is not None
+                else os.path.expanduser("~")
+            ),
+            on_project_created=self._open_project_and_start_server,
+        )
+
+    def _open_project_and_start_server(self, project_path: str) -> None:
+        self.deiconify()
+        workspace_path = os.path.abspath(project_path)
+        self.workspace_dir = workspace_path
+        self.workspace_var.set(workspace_path)
+        self.export_path_var.set(os.path.join(workspace_path, "export"))
+        if not self._ensure_workspace():
+            return
+        self._load_project_title_from_config()
+        self.set_status(f"Workspace set: {workspace_path}")
+        self._open_browser_when_ready = True
+        self.start_server()
+
     # Shutdown -----------------------------------------------------------
     def on_close(self) -> None:
+        if self._is_server_running() and not messagebox.askokcancel(
+            "Quit StrictDoc launcher",
+            "The StrictDoc server is running. Stop the server and quit?",
+            parent=self,
+        ):
+            return
+        self._shutdown()
+
+    def _shutdown(self) -> None:
         try:
             self.stop_server()
         finally:
             self.destroy()
 
+    def _call_in_ui_thread(self, callback: Callable[[], None]) -> None:
+        self._ui_callbacks.put(callback)
 
-def main(workspace: str | None = None) -> None:
-    app = StrictDocLauncher(initial_workspace=workspace)
-    app.mainloop()
+    def _process_ui_callbacks(self) -> None:
+        while True:
+            try:
+                callback = self._ui_callbacks.get_nowait()
+            except queue.Empty:
+                break
+            callback()
+        self.after(50, self._process_ui_callbacks)
+
+    def install_signal_handlers(self) -> Dict[int, Any]:
+        """
+        Stop the server when the launcher process receives SIGTERM or SIGINT.
+
+        Return the previous signal handlers. Python runs signal handlers only
+        between bytecode instructions. _process_ui_callbacks() runs every
+        50 ms, so the Tk main loop returns to Python often enough.
+        """
+
+        def _handle_signal(_signal_number: int, _frame: Any) -> None:
+            self.after(0, self._shutdown)
+
+        previous_handlers: Dict[int, Any] = {}
+        for signal_ in (signal.SIGTERM, signal.SIGINT):
+            try:
+                previous_handlers[signal_] = signal.signal(
+                    signal_, _handle_signal
+                )
+            except (OSError, ValueError):
+                pass
+        return previous_handlers
+
+
+def restore_signal_handlers(previous_handlers: Dict[int, Any]) -> None:
+    for signal_, previous_handler in previous_handlers.items():
+        signal.signal(signal_, previous_handler)
+
+
+def main(options: LauncherOptions | None = None) -> None:
+    app = StrictDocLauncher(options)
+    # The signal handlers use the window. Install them only while the main
+    # loop runs.
+    previous_handlers = app.install_signal_handlers()
+    try:
+        app.mainloop()
+    finally:
+        restore_signal_handlers(previous_handlers)
