@@ -64,6 +64,11 @@ new project from the ``hello_world`` or ``empty`` starter template. The
 launcher then starts the server on a free port and opens the project in the
 browser. When the launcher closes, it stops the server and all processes that
 the server started.
+
+2\) The PyInstaller bundle now contains the desktop launcher as a separate
+executable: ``strictdoc_launcher.exe`` on Windows (without a console window),
+``StrictDoc.app`` on macOS and ``strictdoc_launcher`` on Linux. The
+``strictdoc`` command-line executable does not change.
 <<<
 
 [[/SECTION]]

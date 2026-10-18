@@ -31,6 +31,8 @@ In scope:
 
 Out of scope: StrictDoc functional correctness beyond what its own test suite asserts,
 macOS notarisation/code signing, Windows SmartScreen, performance benchmarking.
+The launcher dialogs are tested by the unit tests in
+`tests/unit/strictdoc/features/launcher/`, not by this plan.
 
 ## 2. Test items and environment
 
@@ -127,6 +129,21 @@ page exception. It records results per page in `crawl_*.json`.
 | BT-BND-03 | Copy the bundle to `.../dir with spaces/strictdoc bundle/` and run from another CWD | export works |
 | BT-BND-04 | `launcher` (Tk) with a DISPLAY | process alive after 10 s, no traceback |
 | lit | Upstream lit suite with `%strictdoc` = the bundle, PATH stripped of `html2pdf4doc` | all tests pass except documented environment-only failures |
+
+### 4.8 Desktop launcher (BT-LCH)
+The bundle has a second executable, `strictdoc_launcher[.exe]`, next to
+`strictdoc[.exe]`. On macOS, the bundle also has `StrictDoc.app`, which
+contains only the launcher. On Linux, the CI runs the suite under `xvfb-run`,
+so that BT-LCH-04 has a display.
+
+| ID | Smoke | Test | Pass criteria |
+|---|---|---|---|
+| BT-LCH-01 | ✔ | `strictdoc_launcher _strictdoc version`: the launcher runs StrictDoc commands with its own executable | rc 0, version printed |
+| BT-LCH-02 | ✔ | `strictdoc_launcher --project <fixture> --no-window --port <free> --no-browser`, then SIGTERM (Linux, macOS) or TerminateProcess (Windows) | index lists the documents; port free after the stop; no traceback |
+| BT-LCH-03 | | `strictdoc_launcher --new-project <dir> --template empty --no-window` | project files created; server responds; port free after the stop |
+| BT-LCH-04 | ✔ | Windowed launcher (`StrictDoc.app/Contents/MacOS/strictdoc_launcher` on macOS) with `--project <fixture>`, then stop it as in BT-LCH-02 | server responds while the window is open; port free after the stop, so the server process stopped with the launcher |
+| BT-LCH-05 | ✔ | Windows: PE header of both executables | `strictdoc_launcher.exe` is a GUI program (no console window), `strictdoc.exe` is a console program |
+| BT-LCH-06 | ✔ | macOS: `StrictDoc.app/Contents/Info.plist` and the app executable | bundle identifier `org.strictdoc.launcher`, executable `strictdoc_launcher`; the app executable runs `_strictdoc version` |
 
 ## 5. Failure triage
 1. Re-run the failing case with the baseline (`STRICTDOC_EXEC=...`).
