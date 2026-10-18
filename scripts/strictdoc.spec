@@ -7,8 +7,17 @@
 #
 #     pyinstaller --noconfirm --clean scripts/strictdoc.spec
 #
-# The output is dist/strictdoc/ with the "strictdoc" executable at its top.
-# The build script renames that directory to include the version and platform.
+# The output is dist/strictdoc/ with two executables at its top:
+#
+#   strictdoc           the command-line interface (console executable)
+#   strictdoc_launcher  the desktop launcher (windowed executable, no console
+#                       window on Windows)
+#
+# On macOS, the spec also builds dist/StrictDoc.app, which contains only the
+# launcher. The launcher runs StrictDoc commands with its own executable (see
+# strictdoc/helpers/frozen.py), so the app does not need the "strictdoc"
+# executable. The build script renames dist/strictdoc/ to include the version
+# and platform and moves StrictDoc.app into it.
 #
 # Data layout inside the bundle follows strictdoc/core/environment.py, which
 # looks up templates and static files relative to sys._MEIPASS when frozen:
@@ -32,6 +41,7 @@ from PyInstaller.utils.hooks import (
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 sys.path.insert(0, ROOT)
 
+from strictdoc import __version__ as STRICTDOC_VERSION  # noqa: E402
 from strictdoc.core.environment import (  # noqa: E402
     BINARY_HTML_STATIC_DIR,
     BINARY_HTML_TEMPLATES_DIR,
@@ -122,50 +132,94 @@ excludes = [
     "matplotlib",
 ]
 
-a = Analysis(
-    [_root(os.path.join("strictdoc", "cli", "main.py"))],
-    pathex=[ROOT],
-    binaries=[],
-    datas=datas,
-    hiddenimports=hiddenimports,
-    hookspath=[_root(os.path.join("developer", "pyinstaller_hooks"))],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=excludes,
-    noarchive=False,
-    optimize=0,
+def _analysis(script):
+    return Analysis(
+        [script],
+        pathex=[ROOT],
+        binaries=[],
+        datas=datas,
+        hiddenimports=hiddenimports,
+        hookspath=[_root(os.path.join("developer", "pyinstaller_hooks"))],
+        hooksconfig={},
+        runtime_hooks=[],
+        excludes=excludes,
+        noarchive=False,
+        optimize=0,
+    )
+
+
+# Only Windows takes .ico directly; macOS would need Pillow to convert it.
+ICON = (
+    _root(os.path.join("strictdoc", "export", "html", "_static", "favicon.ico"))
+    if sys.platform == "win32"
+    else None
 )
 
-pyz = PYZ(a.pure)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name="strictdoc",
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    console=True,
-    # Only Windows takes .ico directly; macOS would need Pillow to convert it.
-    icon=(
-        _root(
-            os.path.join(
-                "strictdoc", "export", "html", "_static", "favicon.ico"
-            )
-        )
-        if sys.platform == "win32"
-        else None
-    ),
+def _exe(analysis, name, console):
+    return EXE(
+        PYZ(analysis.pure),
+        analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name=name,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=console,
+        icon=ICON,
+    )
+
+
+a = _analysis(_root(os.path.join("strictdoc", "cli", "main.py")))
+exe = _exe(a, "strictdoc", console=True)
+
+# The launcher executable has its own entry point because strictdoc/cli/
+# main.py expects a console (see strictdoc/features/launcher/
+# launcher_entry.py). The two analyses find the same modules, data files and
+# binaries, and COLLECT stores each file once.
+launcher_a = _analysis(
+    _root(
+        os.path.join("strictdoc", "features", "launcher", "launcher_entry.py")
+    )
 )
+launcher_exe = _exe(launcher_a, "strictdoc_launcher", console=False)
 
 coll = COLLECT(
     exe,
     a.binaries,
     a.datas,
+    launcher_exe,
+    launcher_a.binaries,
+    launcher_a.datas,
     strip=False,
     upx=False,
     name="strictdoc",
 )
+
+if sys.platform == "darwin":
+    # A macOS app needs its own COLLECT. BUNDLE uses the first executable of
+    # the COLLECT as the app executable. The name must differ from
+    # "strictdoc" also without case: macOS file systems usually ignore case.
+    app_coll = COLLECT(
+        launcher_exe,
+        launcher_a.binaries,
+        launcher_a.datas,
+        strip=False,
+        upx=False,
+        name="strictdoc-app",
+    )
+    app = BUNDLE(
+        app_coll,
+        name="StrictDoc.app",
+        icon=None,
+        bundle_identifier="org.strictdoc.launcher",
+        version=STRICTDOC_VERSION,
+        info_plist={
+            "CFBundleDisplayName": "StrictDoc",
+            "CFBundleName": "StrictDoc",
+            "CFBundleShortVersionString": STRICTDOC_VERSION,
+            "NSHighResolutionCapable": True,
+        },
+    )
