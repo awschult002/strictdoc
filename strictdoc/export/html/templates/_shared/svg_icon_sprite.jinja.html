@@ -1,0 +1,17 @@
+{#
+  Shared SVG sprite (issue #3238): per-node icons are referenced via
+  <use href="#sdoc-icon-..."> instead of being inlined for every node.
+  Each <symbol> is built from the original icons/ico16_*.svg file, so the
+  shapes live in one place: the outer <svg> becomes <symbol> (minus the svg_icon class) and keeps its
+  viewBox, fill and stroke attributes. Lazy-loaded chunks are inserted into
+  this page, so they resolve the ids too.
+#}
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display: none;">
+{%- for icon_name in ["copy", "anchor", "done", "link"] %}
+  {%- set icon_svg %}{% include "icons/ico16_" ~ icon_name ~ ".svg" %}{% endset %}
+  {{ icon_svg.strip()
+       .replace(' class="svg_icon"'|safe, ""|safe, 1)
+       .replace("<svg"|safe, ('<symbol id="sdoc-icon-' ~ icon_name ~ '"')|safe, 1)
+       .replace("</svg>"|safe, "</symbol>"|safe) }}
+{%- endfor %}
+</svg>
