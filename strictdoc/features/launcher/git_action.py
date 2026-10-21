@@ -30,9 +30,9 @@ def _run_git(git_args: List[str], folder: str) -> GitResult:
         GIT_SSH_COMMAND="ssh -o BatchMode=yes",
     )
     # A windowed launcher would flash a console window for every git call.
-    creationflags = (
-        subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-    )
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags = subprocess.CREATE_NO_WINDOW
     try:
         completed = subprocess.run(
             ["git", *git_args],
