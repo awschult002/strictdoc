@@ -86,19 +86,7 @@ def _ensure_git_workspace(self: Any) -> bool:
         return False
 
     assert self.workspace_dir is not None
-    try:
-        completed = subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            cwd=self.workspace_dir,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except Exception as exc:  # noqa: BLE001
-        messagebox.showerror("Git error", str(exc))
-        return False
-
-    if completed.returncode != 0 or completed.stdout.strip().lower() != "true":
+    if get_git_work_tree_root(self.workspace_dir) is None:
         messagebox.showerror(
             "Git repository missing",
             "The selected workspace is not a Git repository.",
@@ -111,7 +99,7 @@ def _ensure_git_workspace(self: Any) -> bool:
 def _run_git_action(
     self: Any,
     action_name: str,
-    git_args: list[str],
+    git_args: List[str],
 ) -> None:
     """Run a Git command in the current workspace in the background."""
 
@@ -120,94 +108,19 @@ def _run_git_action(
 
     assert self.workspace_dir is not None
     workspace_dir = self.workspace_dir
-    git_command_text = "git " + " ".join(git_args)
     self.set_status(f"{action_name}...")
-    self._append_log(f"[{action_name.upper()}] {git_command_text}\n")
+    self._append_log(f"[{action_name.upper()}] git {' '.join(git_args)}\n")
 
     def run_git_action() -> None:
-        try:
-            completed = subprocess.run(
-                ["git", *git_args],
-                cwd=workspace_dir,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        except Exception as exc:  # noqa: BLE001
-            error = exc
-
-            def _handle_exc(error: Exception = error) -> None:
-                self.set_status(f"{action_name} failed.")
-                self._append_log(f"[{action_name.upper()} ERROR] {error}\n")
-                messagebox.showerror(f"{action_name} error", str(error))
-
-            self.after(0, _handle_exc)
-            return
-
-        def _handle_result() -> None:
-            if completed.returncode == 0:
-                self.set_status(f"{action_name} completed.")
-                self._append_log(
-                    f"[{action_name.upper()} OK] {git_command_text}\n"
-                )
-                if completed.stdout:
-                    self._append_log(
-                        f"[{action_name.upper()} STDOUT]\n"
-                        + completed.stdout
-                        + "\n"
-                    )
-                if completed.stderr:
-                    self._append_log(
-                        f"[{action_name.upper()} STDERR]\n"
-                        + completed.stderr
-                        + "\n"
-                    )
-                messagebox.showinfo(
-                    action_name,
-                    f"{action_name} completed successfully.",
-                )
-            elif "commit " in git_args:
-                self.set_status(f"{action_name} completed.")
-                self._append_log(
-                    f"[{action_name.upper()}] Update from StrictDoc Launcher\n"
-                )
-                if completed.stdout:
-                    self._append_log(
-                        f"[{action_name.upper()} STDOUT]\n"
-                        + completed.stdout
-                        + "\n"
-                    )
-                if completed.stderr:
-                    self._append_log(
-                        f"[{action_name.upper()} STDERR]\n"
-                        + completed.stderr
-                        + "\n"
-                    )
-            else:
-                self.set_status(f"{action_name} failed.")
-                self._append_log(
-                    f"[{action_name.upper()} FAILED] rc="
-                    f"{completed.returncode}\n"
-                )
-                if completed.stdout:
-                    self._append_log(
-                        f"[{action_name.upper()} STDOUT]\n"
-                        + completed.stdout
-                        + "\n"
-                    )
-                if completed.stderr:
-                    self._append_log(
-                        f"[{action_name.upper()} STDERR]\n"
-                        + completed.stderr
-                        + "\n"
-                    )
-                messagebox.showerror(
-                    f"{action_name} failed",
-                    "Return code: "
-                    f"{completed.returncode}\n\nSTDOUT:\n{completed.stdout}\n\nSTDERR:\n{completed.stderr}",
-                )
-
-        self.after(0, _handle_result)
+        result = _run_git(git_args, workspace_dir)
+        # "Nothing to commit" is not an error for Commit & Push.
+        if (
+            not result.ok
+            and git_args[0] == "commit"
+            and "nothing to commit" in result.message
+        ):
+            result = GitResult(ok=True, message=result.message)
+        self.after(0, lambda: _report(self, action_name, result))
 
     threading.Thread(target=run_git_action, daemon=True).start()
 

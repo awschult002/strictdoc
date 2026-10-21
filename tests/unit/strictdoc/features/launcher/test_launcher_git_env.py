@@ -107,10 +107,6 @@ class _SyncThread:
         self._target()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="pull/push still use _run_git_action without the safe env",
-)
 @pytest.mark.parametrize("action", ["_git_pull", "_git_push"])
 def test_pull_and_push_run_git_with_a_safe_environment(
     tmp_path: Any,
