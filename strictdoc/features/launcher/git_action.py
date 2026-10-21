@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import threading
 from dataclasses import dataclass
 from tkinter import messagebox, simpledialog
@@ -20,7 +21,18 @@ class GitResult:
 def _run_git(git_args: List[str], folder: str) -> GitResult:
     # The launcher has no terminal, so a password prompt would hang git
     # forever. Fail instead and show git's own error text.
-    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    # GCM_INTERACTIVE=never stops the Git Credential Manager sign-in window
+    # on Windows but keeps saved logins. BatchMode stops SSH prompts.
+    env = dict(
+        os.environ,
+        GIT_TERMINAL_PROMPT="0",
+        GCM_INTERACTIVE="never",
+        GIT_SSH_COMMAND="ssh -o BatchMode=yes",
+    )
+    # A windowed launcher would flash a console window for every git call.
+    creationflags = (
+        subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    )
     try:
         completed = subprocess.run(
             ["git", *git_args],
@@ -29,6 +41,7 @@ def _run_git(git_args: List[str], folder: str) -> GitResult:
             capture_output=True,
             text=True,
             env=env,
+            creationflags=creationflags,
             check=False,
         )
     except OSError as exc:
