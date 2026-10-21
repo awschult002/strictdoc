@@ -139,11 +139,19 @@ class StartDialog(tk.Toplevel):
         self.open_project(project_path)
 
     def open_project(self, project_path: str) -> None:
-        if not is_strictdoc_project(project_path) and not messagebox.askyesno(
-            "Open project",
-            "The folder has no StrictDoc config file and no SDoc documents:\n"
-            f"{project_path}\n\nOpen it anyway?",
-            parent=self,
+        # An empty folder opens without asking, so it can be filled with
+        # Git > Git Clone.
+        is_empty = len(os.listdir(project_path)) == 0
+        if (
+            not is_empty
+            and not is_strictdoc_project(project_path)
+            and not messagebox.askyesno(
+                "Open project",
+                "The folder has no StrictDoc config file and no SDoc "
+                "documents:\n"
+                f"{project_path}\n\nOpen it anyway?",
+                parent=self,
+            )
         ):
             return
         self._finish(project_path)

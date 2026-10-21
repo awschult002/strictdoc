@@ -132,12 +132,31 @@ def test_start_dialog_asks_before_opening_a_folder_without_documents(
         on_dismiss=lambda: None,
     )
 
+    (tmp_path / "notes.txt").write_text("not a document", encoding="utf-8")
+
     # The recorded askyesno answers "No".
     dialog.open_project(str(tmp_path))
 
     assert opened_projects == []
     assert "Open it anyway?" in messages[0]
     dialog.destroy()
+
+
+def test_start_dialog_opens_an_empty_folder_without_asking(
+    root: tk.Tk, tmp_path: Path, messages: List[str]
+) -> None:
+    opened_projects: List[str] = []
+    dialog = StartDialog(
+        root,
+        recent_projects=[],
+        on_open_project=opened_projects.append,
+        on_dismiss=lambda: None,
+    )
+
+    dialog.open_project(str(tmp_path))
+
+    assert opened_projects == [str(tmp_path)]
+    assert messages == []
 
 
 def test_new_project_dialog_creates_a_project(
