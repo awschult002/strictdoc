@@ -147,7 +147,8 @@ class StartDialog(tk.Toplevel):
             and not is_strictdoc_project(project_path)
             and not messagebox.askyesno(
                 "Open project",
-                "The folder has no StrictDoc config file and no SDoc documents:\n"
+                "The folder has no StrictDoc config file and no SDoc "
+                "documents:\n"
                 f"{project_path}\n\nOpen it anyway?",
                 parent=self,
             )
