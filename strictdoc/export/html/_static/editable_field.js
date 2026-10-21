@@ -373,6 +373,10 @@
     const hidden = editable.nextElementSibling;
     const clipboardText = (event.clipboardData || window.clipboardData).getData('text');
 
+    // Read the text before the first await. Firefox returns an empty string
+    // from getData() once the synchronous part of the event handler is over.
+    const clipboardText = (event.clipboardData || window.clipboardData).getData('text');
+
     // @relation(SDOC-LLR-214, scope=range_start)
     // For multiline, we also handle copy paste of images here.
     if (!isSingle && await handleImagePaste(editable, event)) return;
