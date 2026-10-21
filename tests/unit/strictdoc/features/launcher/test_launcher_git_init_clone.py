@@ -69,9 +69,7 @@ def _git(cwd: Path, *args: str) -> str:
 def api() -> SimpleNamespace:
     module = pytest.importorskip(ASSUMED_API.module)
     names = [
-        value
-        for key, value in vars(ASSUMED_API).items()
-        if key != "module"
+        value for key, value in vars(ASSUMED_API).items() if key != "module"
     ]
     missing = [name for name in names if not hasattr(module, name)]
     if len(missing) > 0:
@@ -86,9 +84,7 @@ def api() -> SimpleNamespace:
 
 
 @pytest.fixture(autouse=True)
-def git_environment(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def git_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Keep Git away from the user's configuration and credential helpers."""
     home = tmp_path / "home"
     home.mkdir()
@@ -356,4 +352,3 @@ def test_credential_server_fixture_makes_plain_git_fail_without_prompt(
     )
     assert completed.returncode != 0
     assert _list_folder(folder) == []
-
