@@ -331,14 +331,42 @@ class StrictDocLauncher(tk.Tk):
             git_action._git_commit(self)
             git_action._git_push(self)
 
-        git_actions: list[tuple[str, Callable[[], None]]] = [
+        repo_actions: list[tuple[str, Callable[[], None]]] = [
             ("Git Pull", lambda: git_action._git_pull(self)),
             ("Git Commit & Push", _git_commit_and_push),
             ("Git Commit", lambda: git_action._git_commit(self)),
             ("Git Push", lambda: git_action._git_push(self)),
         ]
-        for label, command in git_actions:
-            git_menu.add_command(label=label, command=command)
+
+        def _fill_git_menu() -> None:
+            # Rebuilt each time the menu opens, because init or clone can
+            # turn the workspace into a repository.
+            git_menu.delete(0, "end")
+            if self.workspace_dir is None:
+                available: set[str] = set()
+            else:
+                available = git_action.get_available_git_actions(
+                    self.workspace_dir
+                )
+            if git_action.ACTION_INIT in available:
+                git_menu.add_command(
+                    label="Git Init",
+                    command=lambda: git_action._git_init(self),
+                )
+            if git_action.ACTION_CLONE in available:
+                git_menu.add_command(
+                    label="Git Clone...",
+                    command=lambda: git_action._git_clone(self),
+                )
+            if git_action.ACTION_PUSH in available:
+                for label, command in repo_actions:
+                    git_menu.add_command(label=label, command=command)
+            if not available:
+                git_menu.add_command(
+                    label="Select a folder first", state="disabled"
+                )
+
+        git_menu.configure(postcommand=_fill_git_menu)
         self.git_actions_dropdown["menu"] = git_menu
         self.git_actions_dropdown.grid(row=0, column=5, sticky="e", **PADDING)
 
