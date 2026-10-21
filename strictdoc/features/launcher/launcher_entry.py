@@ -66,7 +66,6 @@ def run_launcher(argv: List[str]) -> int:
     """
     Run the launcher with the command-line arguments and return an exit code.
     """
-    ensure_standard_streams()
     parser = create_launcher_parser()
     args = parser.parse_args(get_launcher_arguments(argv))
     command = LauncherCommand(args)
@@ -96,6 +95,9 @@ def main(argv: Optional[List[str]] = None) -> None:  # pragma: no cover
     # the arguments of multiprocessing. freeze_support() runs the worker and
     # exits.
     multiprocessing.freeze_support()
+    # A windowed executable has no console, so sys.stdout and sys.stderr
+    # are None in the launcher and in every StrictDoc command it starts.
+    ensure_standard_streams()
     frozen.mark_launcher_executable()
     frozen.run_frozen_helper_command_if_requested()
 
