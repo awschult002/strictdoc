@@ -129,8 +129,10 @@ venv_inputs() {
 }
 WANTED_STAMP="$(venv_inputs | cksum)"
 
+# The import check catches a venv that was damaged after its stamp was written.
 if [ "$CLEAN" != 1 ] && [ -x "$VENV_PY" ] \
-  && [ "$(cat "$VENV_STAMP" 2>/dev/null)" = "$WANTED_STAMP" ]; then
+  && [ "$(cat "$VENV_STAMP" 2>/dev/null)" = "$WANTED_STAMP" ] \
+  && "$VENV_PY" -c "import PyInstaller, textx" >/dev/null 2>&1; then
   log "Reusing venv $BUILD_VENV"
   if [ "$USE_UV" = 1 ]; then
     uv pip install --python "$VENV_PY" --no-deps --reinstall .
