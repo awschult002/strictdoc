@@ -91,13 +91,15 @@ def run_strictdoc_command(argv: List[str]) -> None:  # pragma: no cover
 
 
 def main(argv: Optional[List[str]] = None) -> None:  # pragma: no cover
+    # A windowed executable has no console, so sys.stdout and sys.stderr
+    # are None in the launcher, in every StrictDoc command it starts and in
+    # their multiprocessing workers. This must run before freeze_support(),
+    # which runs a worker and exits without returning here.
+    ensure_standard_streams()
     # A worker process of multiprocessing starts this executable again with
     # the arguments of multiprocessing. freeze_support() runs the worker and
     # exits.
     multiprocessing.freeze_support()
-    # A windowed executable has no console, so sys.stdout and sys.stderr
-    # are None in the launcher and in every StrictDoc command it starts.
-    ensure_standard_streams()
     frozen.mark_launcher_executable()
     frozen.run_frozen_helper_command_if_requested()
 
