@@ -70,6 +70,7 @@ executable: ``strictdoc_launcher.exe`` on Windows (without a console window),
 ``StrictDoc.app`` on macOS and ``strictdoc_launcher`` on Linux. The
 ``strictdoc`` command-line executable does not change.
 <<<
+
 [[/SECTION]]
 
 [[SECTION]]
