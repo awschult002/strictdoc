@@ -1,5 +1,5 @@
 import subprocess
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pytest
 
@@ -28,11 +28,26 @@ class _FakeLauncher:
 
 
 class _SyncThread:
-    def __init__(self, target: Callable[[], None], **_kwargs: Any) -> None:
+    # This replaces threading.Thread for the whole process, so it also runs
+    # the reader threads of subprocess.communicate() on Windows, which pass
+    # args and call join().
+    def __init__(
+        self,
+        target: Callable[..., None],
+        args: Tuple[Any, ...] = (),
+        kwargs: Optional[Dict[str, Any]] = None,
+        **_options: Any,
+    ) -> None:
         self._target = target
+        self._args = args
+        self._kwargs = {} if kwargs is None else kwargs
+        self.daemon = False
 
     def start(self) -> None:
-        self._target()
+        self._target(*self._args, **self._kwargs)
+
+    def join(self, timeout: Optional[float] = None) -> None:
+        pass
 
 
 def test_commit_with_nothing_to_commit_is_not_a_failure(
