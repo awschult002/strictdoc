@@ -58,3 +58,6 @@ def test_multiprocessing_worker_gets_standard_streams(
 
     assert len(seen) == 2
     assert None not in seen
+    # html2pdf4doc calls fileno() on the streams when it is imported.
+    for stream in seen:
+        assert isinstance(stream.fileno(), int)  # type: ignore[attr-defined]
