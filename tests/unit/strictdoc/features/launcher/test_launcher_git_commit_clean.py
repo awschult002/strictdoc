@@ -1,4 +1,5 @@
 import subprocess
+import threading
 from typing import Any, Callable, List, Tuple
 
 import pytest
@@ -13,6 +14,8 @@ class _FakeLauncher:
         self.workspace_dir = workspace_dir
         self.statuses: List[str] = []
         self.log: List[str] = []
+        self.reported = threading.Event()
+        self._callbacks: List[Callable[[], None]] = []
 
     def _ensure_workspace(self) -> bool:
         return True
@@ -24,15 +27,14 @@ class _FakeLauncher:
         self.log.append(text)
 
     def after(self, _ms: int, fn: Callable[[], None]) -> None:
-        fn()
+        # Called from the real worker thread; hand the UI callback back to
+        # the test thread instead of running Tk code off the main thread.
+        self._callbacks.append(fn)
+        self.reported.set()
 
-
-class _SyncThread:
-    def __init__(self, target: Callable[[], None], **_kwargs: Any) -> None:
-        self._target = target
-
-    def start(self) -> None:
-        self._target()
+    def run_pending_callbacks(self) -> None:
+        for fn in self._callbacks:
+            fn()
 
 
 def test_commit_with_nothing_to_commit_is_not_a_failure(
@@ -74,10 +76,12 @@ def test_commit_with_nothing_to_commit_is_not_a_failure(
         "askstring",
         lambda *_a, **_k: "Update from StrictDoc Launcher",
     )
-    monkeypatch.setattr(git_action.threading, "Thread", _SyncThread)
-
+    # No patching of threading or subprocess: the real worker thread runs
+    # and we wait for it to report back through launcher.after().
     launcher = _FakeLauncher(str(repo))
     git_action._git_commit(launcher)
+    assert launcher.reported.wait(timeout=60), "git commit worker timed out"
+    launcher.run_pending_callbacks()
 
     assert errors == []
     assert not any("failed" in s for s in launcher.statuses)
