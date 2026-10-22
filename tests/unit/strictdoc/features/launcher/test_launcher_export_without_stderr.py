@@ -33,3 +33,31 @@ def test_strictdoc_command_gets_standard_streams(
     launcher_entry.main([frozen.FROZEN_STRICTDOC_COMMAND, "export", "."])
 
     assert None not in seen
+
+
+def test_multiprocessing_worker_gets_standard_streams(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # freeze_support() runs a multiprocessing worker and exits without
+    # returning, so the worker only gets the streams that were set before it.
+    seen: List[object] = []
+
+    def _freeze_support() -> None:
+        seen.append(sys.stdout)
+        seen.append(sys.stderr)
+        raise SystemExit(0)
+
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", None)
+    monkeypatch.setattr(
+        launcher_entry.multiprocessing, "freeze_support", _freeze_support
+    )
+
+    with pytest.raises(SystemExit):
+        launcher_entry.main(["--multiprocessing-fork"])
+
+    assert len(seen) == 2
+    assert None not in seen
+    # html2pdf4doc calls fileno() on the streams when it is imported.
+    for stream in seen:
+        assert isinstance(stream.fileno(), int)  # type: ignore[attr-defined]
