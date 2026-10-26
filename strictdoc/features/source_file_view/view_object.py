@@ -221,11 +221,11 @@ class SourceFileViewObject:
         return f"{covered} / {total_non_empty} ({percentage:.1f}%)"
 
     def get_file_stats_functions_total(self) -> str:
-        return str(len(self.trace_info.functions))
+        return str(self.trace_info.get_functions_total())
 
     def get_file_stats_functions_covered(self) -> str:
         covered = self.trace_info.covered_functions
-        total = len(self.trace_info.functions)
+        total = self.trace_info.get_functions_total()
         percentage = (covered / total * 100) if total > 0 else 0
         return f"{covered} / {total} ({percentage:.1f}%)"
 

@@ -3253,9 +3253,9 @@ specific programming languages and their constructs, such as classes or
 functions.
 
 Language-aware parsing recognizes selected language syntax, primarily enabling
-traceability of functions (in Python, C/C++, Rust, Ada, and others), classes (in
-Python, C++, and others), and tests (Python, C++, Robot Framework) to
-requirements.
+traceability of functions (in Python, C/C++, Rust, Ada, VHDL, and others),
+classes (in Python, C++, and others), and tests (Python, C++, Robot Framework)
+to requirements.
 
 Language-aware parsing is enabled automatically for supported source file types
 when requirement-to-source traceability is enabled:
@@ -3319,7 +3319,8 @@ The marker must be added to the top comment of a file.
         @relation(REQ-1, scope=class)
         """
 
-**3\) Linking language items to a requirement (Python, C, C++, Rust, Ada)**
+**3\) Linking language items to a requirement (Python, C, C++, Rust, Ada,
+VHDL)**
 
 For Python, ``@relation`` markers can be placed inside `doc strings`_ to link
 functions and classes.
@@ -3365,6 +3366,32 @@ requirement to the corresponding subprogram body.
        -- @relation(REQ-1, scope=function)
        procedure Hello_World;
     end Hello;
+
+For VHDL (``.vhd`` and ``.vhdl`` files), ``@relation`` markers are placed in
+the ``--`` or ``/* */`` comment directly above a function or procedure. As
+with Ada, if the marker is in a package declaration, StrictDoc also links the
+requirement to the subprogram body in the package body. Names are matched
+case-insensitively, except for extended identifiers such as ``\Ext_Id\``,
+which must match exactly.
+
+Entities, architectures and labeled processes can be linked in the same way.
+An entity is named ``counter``, an architecture ``counter(rtl)`` and a labeled
+process ``counter(rtl).p``. Subprograms take the name of the unit they are
+declared in: ``counter.foo`` in an entity, ``counter(rtl).inc`` in an
+architecture and ``counter(sim).p.tick`` in a labeled process. An unlabeled
+process is not an item, so a marker inside it is covered by the architecture,
+and a subprogram inside it is named like ``counter(sim).tick``. Only functions
+and procedures are counted in the "Functions covered by requirements"
+statistics. Entities, architectures and processes are not counted.
+
+.. code:: vhdl
+
+    package hello is
+      -- Some text.
+      --
+      -- @relation(REQ-1, scope=function)
+      procedure hello_world;
+    end package hello;
 
 For Rust, ``@relation`` marker can be placed inside `doc comments`_ to
 automatically infer the linked item. This works for almost all Rust language

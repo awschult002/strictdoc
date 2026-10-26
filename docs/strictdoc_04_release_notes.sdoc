@@ -65,6 +65,15 @@ subprograms. A subprogram body is linked to the requirements of its
 declaration, as for C function declarations and definitions. Thanks to
 @briot for the tree-sitter-ada grammar and to @haxtibal. See
 `#2345 <https://github.com/strictdoc-project/strictdoc/issues/2345>`_.
+
+2\) VHDL support was added to the tracing to source files feature in
+StrictDoc. The parser reads ``.vhd`` and ``.vhdl`` files and recognizes
+functions and procedures, entities, architectures and labeled processes, so
+the @relation marker can be used on them in ``--`` and ``/* */`` comments.
+Only functions and procedures count toward the function coverage. A
+subprogram body in a package body is linked to the requirements of its
+declaration in the package, as for Ada. VHDL-2008 is the minimum supported
+version. Thanks to @jpt13653903 for the tree-sitter-vhdl grammar.
 <<<
 
 [[/SECTION]]

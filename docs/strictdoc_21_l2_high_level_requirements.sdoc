@@ -1576,6 +1576,33 @@ language's specifics.
 <<<
 
 [REQUIREMENT]
+MID: b0133b2df5c24607a4b1a9d5e9829e52
+UID: SDOC-SRS-209
+STATUS: Active
+TITLE: Language-aware parsing of VHDL code
+STATEMENT: >>>
+StrictDoc shall support parsing the VHDL source files (.vhd, .vhdl) which
+includes:
+
+- Recognizing function and procedure declarations and bodies.
+- Recognizing entities, architectures and labeled processes as items that can
+  be linked, without counting them as functions in the source coverage.
+- Recognizing @relation markers in the ``--`` and ``/* */`` comments:
+  scope=function markers above subprograms, scope=file markers, range markers
+  and line markers.
+- Linking a subprogram body in a package body to the requirements of its
+  declaration in the package, as for Ada.
+- Matching basic identifiers case-insensitively and extended identifiers
+  case-sensitively.
+- Not creating a link if a name matches more than one subprogram, for example
+  overloaded subprograms.
+<<<
+RATIONALE: >>>
+VHDL language has to be handled with a dedicated parser because of this
+language's specifics.
+<<<
+
+[REQUIREMENT]
 MID: 9183080f1358485f9bacdcda0635109
 UID: SDOC-SRS-148
 STATUS: Active

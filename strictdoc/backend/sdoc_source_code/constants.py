@@ -13,3 +13,6 @@ class FunctionAttribute(Enum):
     STATIC = "static"
     DECLARATION = "declaration"
     DEFINITION = "definition"
+    # An item that can be referenced like a function but is not one, for
+    # example a VHDL entity. It is not counted in the function coverage.
+    NON_FUNCTION = "non_function"

@@ -90,9 +90,10 @@ class FileTraceabilityIndex:
             str, List[LanguageItem]
         ] = {}
 
-        # Ada subprogram names with more than one declaration or body in the
-        # source tree (overloads). These are not linked.
+        # Ada and VHDL subprogram names with more than one declaration or
+        # body in the source tree (overloads). These are not linked.
         self.ada_overloaded_function_names: Set[str] = set()
+        self.vhdl_overloaded_function_names: Set[str] = set()
 
         # "file.py" -> [SDocNode]  # noqa: ERA001
         self.source_file_reqs_cache: Dict[str, Optional[List[SDocNode]]] = {}
@@ -101,6 +102,15 @@ class FileTraceabilityIndex:
             OrderedSet()
         )
         self.trace_infos: List[SourceFileTraceabilityInfo] = []
+
+    def _is_overloaded_function(
+        self, source_file: SourceFile, function_name: str
+    ) -> bool:
+        if source_file.is_ada_file():
+            return function_name in self.ada_overloaded_function_names
+        if source_file.is_vhdl_file():
+            return function_name in self.vhdl_overloaded_function_names
+        return False
 
     def has_source_file_reqs(self, source_file_rel_path: str) -> bool:
         path_reqs = self.map_paths_to_reqs.get(source_file_rel_path)
@@ -232,7 +242,8 @@ class FileTraceabilityIndex:
         # STEP: Collect minimal information that will help to resolve the
         #       forward-declared paths/function names at the step 2.
         #
-        ada_function_counts: Counter[Tuple[bool, str]] = Counter()
+        # (is VHDL, is definition, name) -> count, for Ada and VHDL files.
+        overload_counts: Counter[Tuple[bool, bool, str]] = Counter()
         for trace_info_ in self.trace_infos:
             source_file: SourceFile = assert_cast(
                 trace_info_.source_file, SourceFile
@@ -247,14 +258,24 @@ class FileTraceabilityIndex:
                     self.map_all_function_names_to_definition_functions.setdefault(
                         function_.name, []
                     ).append(function_)
-                if source_file.is_ada_file():
-                    ada_function_counts[
-                        (function_.is_definition(), function_.name)
+                if source_file.is_ada_file() or source_file.is_vhdl_file():
+                    overload_counts[
+                        (
+                            source_file.is_vhdl_file(),
+                            function_.is_definition(),
+                            function_.name,
+                        )
                     ] += 1
-        self.ada_overloaded_function_names = {
-            name_
-            for (_, name_), count_ in ada_function_counts.items()
+        overloaded_ = [
+            (is_vhdl_, name_)
+            for (is_vhdl_, _, name_), count_ in overload_counts.items()
             if count_ > 1
+        ]
+        self.ada_overloaded_function_names = {
+            name_ for is_vhdl_, name_ in overloaded_ if not is_vhdl_
+        }
+        self.vhdl_overloaded_function_names = {
+            name_ for is_vhdl_, name_ in overloaded_ if is_vhdl_
         }
 
         #
@@ -778,7 +799,7 @@ class FileTraceabilityIndex:
                     trace_info_.markers.append(marker_copy)
 
         #
-        # Resolve definitions to declarations (C, C++ and Ada only).
+        # Resolve definitions to declarations (C, C++, Ada and VHDL only).
         #
 
         reversed_trace_info = {
@@ -794,11 +815,9 @@ class FileTraceabilityIndex:
                     function_.is_declaration()
                     and function_.name
                     in self.map_all_function_names_to_definition_functions
-                    and not (
-                        assert_cast(
-                            traceability_info_.source_file, SourceFile
-                        ).is_ada_file()
-                        and function_.name in self.ada_overloaded_function_names
+                    and not self._is_overloaded_function(
+                        assert_cast(traceability_info_.source_file, SourceFile),
+                        function_.name,
                     )
                 ):
                     definition_functions: List[LanguageItem] = []
@@ -1099,6 +1118,8 @@ class FileTraceabilityIndex:
                         coverage += 1
 
             for function_ in traceability_info_.functions:
+                if not function_.is_function():
+                    continue
                 for merged_range in merged_ranges:
                     if (
                         function_.line_begin >= merged_range[0]

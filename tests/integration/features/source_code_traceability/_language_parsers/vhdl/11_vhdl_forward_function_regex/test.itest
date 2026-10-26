@@ -1,0 +1,17 @@
+# @relation(SDOC-SRS-209, SDOC-SRS-145, scope=file)
+
+RUN: %strictdoc export %S --output-dir %T | filecheck %s --dump-input=fail
+CHECK: Export completed.
+
+RUN: %check_exists --file "%T/html/_source_files/file.vhd.html"
+
+RUN: %cat %T/html/%THIS_TEST_FOLDER/input.html | filecheck %s --dump-input=fail --check-prefix CHECK-HTML
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-1#14#17">
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-1#19#22">
+
+RUN: %cat %T/html/_source_files/file.vhd.html | filecheck %s --dump-input=fail --check-prefix CHECK-FILE
+CHECK-FILE: 14 - 17 | function hello.hello_world_3()
+CHECK-FILE: 19 - 22 | function hello.hello_world_4()
+
+RUN: %cat %T/html/source_coverage.html | filecheck %s --dump-input=fail --check-prefix CHECK-SOURCE-COVERAGE
+CHECK-SOURCE-COVERAGE: 40.0

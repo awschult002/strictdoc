@@ -29,6 +29,9 @@ from strictdoc.backend.sdoc_source_code.reader_robot import (
 from strictdoc.backend.sdoc_source_code.reader_rust import (
     SourceFileTraceabilityReader_Rust,
 )
+from strictdoc.backend.sdoc_source_code.reader_vhdl import (
+    SourceFileTraceabilityReader_VHDL,
+)
 from strictdoc.core.project_config import ProjectConfig
 
 
@@ -81,6 +84,7 @@ class SourceFileTraceabilityCachingReader:
         SourceFileTraceabilityReader_Robot,
         SourceFileTraceabilityReader_Rust,
         SourceFileTraceabilityReader_Ada,
+        SourceFileTraceabilityReader_VHDL,
     ]:
         return SourceCodeReaderRegistry.get_reader(
             path_to_file, project_config, source_node_tags

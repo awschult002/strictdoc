@@ -18,6 +18,9 @@ from strictdoc.backend.sdoc_source_code.reader_robot import (
 from strictdoc.backend.sdoc_source_code.reader_rust import (
     SourceFileTraceabilityReader_Rust,
 )
+from strictdoc.backend.sdoc_source_code.reader_vhdl import (
+    SourceFileTraceabilityReader_VHDL,
+)
 from strictdoc.core.project_config import ProjectConfig
 
 
@@ -34,6 +37,7 @@ class SourceCodeReaderRegistry:
         SourceFileTraceabilityReader_Robot,
         SourceFileTraceabilityReader_Rust,
         SourceFileTraceabilityReader_Ada,
+        SourceFileTraceabilityReader_VHDL,
     ]:
         if path_to_file.endswith(".py"):
             return SourceFileTraceabilityReader_Python()
@@ -56,6 +60,10 @@ class SourceCodeReaderRegistry:
             )
         if path_to_file.endswith((".adb", ".ads", ".ada")):
             return SourceFileTraceabilityReader_Ada(
+                custom_tags=source_node_tags
+            )
+        if path_to_file.endswith((".vhd", ".vhdl")):
+            return SourceFileTraceabilityReader_VHDL(
                 custom_tags=source_node_tags
             )
         return SourceFileTraceabilityReader()

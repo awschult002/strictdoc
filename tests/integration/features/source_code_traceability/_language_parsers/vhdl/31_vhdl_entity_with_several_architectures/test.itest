@@ -1,0 +1,25 @@
+# @relation(SDOC-SRS-209, SDOC-SRS-137, scope=file)
+
+RUN: %strictdoc export %S --output-dir %T | filecheck %s --dump-input=fail
+CHECK: Export completed.
+
+RUN: %check_exists --file "%T/html/_source_files/file.vhd.html"
+
+RUN: %cat %T/html/%THIS_TEST_FOLDER/input.html | filecheck %s --dump-input=fail --check-prefix CHECK-HTML
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-1#5#14">
+CHECK-HTML: file.vhd, <i>lines: 5-14</i>, range
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-2#7#11">
+CHECK-HTML: file.vhd, <i>lines: 7-11</i>, function counter(rtl).inc()
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-3#22#30">
+CHECK-HTML: file.vhd, <i>lines: 22-30</i>, function counter(sim).p()
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-3#23#27">
+CHECK-HTML: file.vhd, <i>lines: 23-27</i>, function counter(sim).p.tick()
+
+RUN: %cat %T/html/%THIS_TEST_FOLDER/input.html | filecheck %s --dump-input=fail --check-prefix CHECK-NEG
+CHECK-NEG-NOT: counter(sim).inc
+
+RUN: %cat %T/html/_source_files/file.vhd.html | filecheck %s --dump-input=fail --check-prefix CHECK-FILE
+CHECK-FILE: Functions:
+CHECK-FILE-NEXT: 3
+CHECK-FILE: Functions covered by requirements:
+CHECK-FILE-NEXT: 2 / 3 (66.7%)

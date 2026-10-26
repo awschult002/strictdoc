@@ -14,6 +14,7 @@ from pygments.lexers.ada import AdaLexer
 from pygments.lexers.c_cpp import CLexer, CppLexer
 from pygments.lexers.configs import TOMLLexer
 from pygments.lexers.data import YamlLexer
+from pygments.lexers.hdl import VhdlLexer
 from pygments.lexers.javascript import JavascriptLexer
 from pygments.lexers.markup import RstLexer, TexLexer
 from pygments.lexers.python import PythonLexer
@@ -188,6 +189,8 @@ class SourceFileViewHTMLGenerator:
             lexer = CppLexer()
         elif source_file.is_ada_file():
             lexer = AdaLexer()
+        elif source_file.is_vhdl_file():
+            lexer = VhdlLexer()
         elif source_file.is_tex_file():
             lexer = TexLexer()
         elif source_file.is_toml_file():

@@ -110,5 +110,8 @@ class LanguageItem:
     def is_definition(self) -> bool:
         return FunctionAttribute.DEFINITION in self.attributes
 
+    def is_function(self) -> bool:
+        return FunctionAttribute.NON_FUNCTION not in self.attributes
+
     def is_public(self) -> bool:
         return FunctionAttribute.STATIC not in self.attributes

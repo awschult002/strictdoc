@@ -1,0 +1,19 @@
+# @relation(SDOC-SRS-209, SDOC-SRS-137, scope=file)
+
+RUN: %strictdoc export %S --output-dir %T | filecheck %s --dump-input=fail
+CHECK: Export completed.
+
+RUN: %check_exists --file "%T/html/_source_files/file.vhd.html"
+
+RUN: %cat %T/html/%THIS_TEST_FOLDER/input.html | filecheck %s --dump-input=fail --check-prefix CHECK-HTML
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-1#6#10">
+CHECK-HTML: file.vhd, <i>lines: 6-10</i>, function hello.local_helper
+
+RUN: %cat %T/html/%THIS_TEST_FOLDER/input.html | filecheck %s --dump-input=fail --check-prefix CHECK-NEG
+CHECK-NEG-NOT: hello.pub
+
+RUN: %cat %T/html/_source_files/file.vhd.html | filecheck %s --dump-input=fail --check-prefix CHECK-FILE
+CHECK-FILE: 6 - 10 | function hello.local_helper()
+
+RUN: %cat %T/html/source_coverage.html | filecheck %s --dump-input=fail --check-prefix CHECK-SOURCE-COVERAGE
+CHECK-SOURCE-COVERAGE: 35.7

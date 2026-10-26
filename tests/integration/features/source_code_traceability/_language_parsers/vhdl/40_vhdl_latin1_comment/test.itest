@@ -1,0 +1,9 @@
+#
+# A VHDL file with a Latin-1 byte in a comment is not valid UTF-8. As for the
+# C and Ada readers, the export stops with a decode error.
+#
+# @relation(SDOC-SRS-209, SDOC-SRS-33, scope=file)
+#
+
+RUN: %expect_exit 1 %strictdoc export %S --output-dir %T | filecheck %s --dump-input=fail
+CHECK: error: 'utf-8' codec can't decode byte 0xe9

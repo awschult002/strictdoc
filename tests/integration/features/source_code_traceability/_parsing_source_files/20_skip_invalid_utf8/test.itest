@@ -13,6 +13,7 @@ CHECK: warning: Skip reading binary file {{.*}}invalid_file.bin
 CHECK: warning: Skip reading binary file {{.*}}invalid_file.c
 CHECK: warning: Skip reading binary file {{.*}}invalid_file.py
 CHECK: warning: Skip reading binary file {{.*}}invalid_file.robot
+CHECK: warning: Skip reading binary file {{.*}}invalid_file.vhd
 
 RUN: %check_exists --file "%T/html/_source_files/file.py.html"
 

@@ -104,7 +104,7 @@ class SourceCoverageViewObject:
         )
         if trace_info is None:
             return "0"
-        return str(len(trace_info.functions))
+        return str(trace_info.get_functions_total())
 
     def get_file_stats_functions_covered(self, source_file: SourceFile) -> str:
         trace_info: Optional[SourceFileTraceabilityInfo] = (
@@ -127,6 +127,6 @@ class SourceCoverageViewObject:
         if trace_info is None:
             return f"{0:.1f}"
         covered = trace_info.covered_functions
-        total = len(trace_info.functions)
+        total = trace_info.get_functions_total()
         percentage = (covered / total * 100) if total > 0 else 0
         return f"{percentage:.1f}"

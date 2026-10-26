@@ -1,0 +1,16 @@
+# @relation(SDOC-SRS-209, SDOC-SRS-137, scope=file)
+
+RUN: %strictdoc export %S --output-dir %T | filecheck %s --dump-input=fail
+CHECK: Export completed.
+
+RUN: %check_exists --file "%T/html/_source_files/file.vhd.html"
+
+RUN: %cat %T/html/%THIS_TEST_FOLDER/input.html | filecheck %s --dump-input=fail --check-prefix CHECK-HTML
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-1#7#11">
+CHECK-HTML: file.vhd, <i>lines: 7-11</i>, function counter(rtl).a.tick()
+CHECK-HTML: <a{{.*}}href="../_source_files/file.vhd.html#REQ-2#17#21">
+CHECK-HTML: file.vhd, <i>lines: 17-21</i>, function counter(rtl).b.tick()
+
+RUN: %cat %T/html/_source_files/file.vhd.html | filecheck %s --dump-input=fail --check-prefix CHECK-FILE
+CHECK-FILE: Functions covered by requirements:
+CHECK-FILE-NEXT: 2 / 2 (100.0%)

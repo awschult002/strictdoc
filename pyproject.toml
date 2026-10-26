@@ -79,6 +79,7 @@ dependencies = [
     "tree_sitter_cpp",
     "tree-sitter-python",
     "tree-sitter-rust",
+    "tree-sitter-vhdl == 2.0.3",
 
     # Requirements-to-source traceability. Colored syntax for source files.
     "pygments == 2.21.0",

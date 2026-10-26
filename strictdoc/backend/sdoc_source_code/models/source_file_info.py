@@ -69,6 +69,9 @@ class SourceFileTraceabilityInfo:
 
         self.markers: List[RelationMarkerType] = []
 
+    def get_functions_total(self) -> int:
+        return sum(1 for function_ in self.functions if function_.is_function())
+
     def is_document_node(self) -> bool:
         return False
 
