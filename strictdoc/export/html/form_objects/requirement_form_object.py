@@ -239,6 +239,27 @@ class RequirementReferenceFormField:
 
 
 @auto_described
+class DerivedRelationRow:
+    """
+    A read-only relation shown in the edit form of a node whose link is
+    stored on the other node (e.g., a Parent relation derived from a Child
+    relation stored on the parent). Not part of the submitted form data.
+    """
+
+    def __init__(
+        self, *, relation_type: str, role: Optional[str], owner: SDocNode
+    ) -> None:
+        self.relation_type: str = relation_type
+        self.role: Optional[str] = role
+        self.owner: SDocNode = owner
+        self.owner_uid: str = assert_cast(owner.reserved_uid, str)
+        self.owner_mid: str = owner.reserved_mid.get_string_value()
+        self.owner_document_mid: str = assert_cast(
+            owner.get_document(), SDocDocument
+        ).reserved_mid.get_string_value()
+
+
+@auto_described
 class RequirementFormObject(ErrorObject):
     """
     Class for managing node fields in the StrictDoc web editor.
@@ -284,6 +305,7 @@ class RequirementFormObject(ErrorObject):
         self.reference_fields: List[RequirementReferenceFormField] = (
             reference_fields
         )
+        self.derived_relations: List[DerivedRelationRow] = []
         self.existing_requirement_uid: Optional[str] = existing_requirement_uid
         self.grammar: DocumentGrammar = grammar
         self.relation_types: List[str] = relation_types
@@ -481,6 +503,7 @@ class RequirementFormObject(ErrorObject):
         requirement: SDocNode,
         revision: int,
         context_document_mid: str,
+        traceability_index: Optional[TraceabilityIndex] = None,
     ) -> "RequirementFormObject":
         assert isinstance(requirement, SDocNode)
         document: SDocDocument = assert_cast(
@@ -553,7 +576,7 @@ class RequirementFormObject(ErrorObject):
                     or "",
                 )
                 form_refs_fields.append(form_ref_field)
-        return RequirementFormObject(
+        form_object = RequirementFormObject(
             is_new=False,
             element_type=requirement.node_type,
             revision=revision,
@@ -567,6 +590,50 @@ class RequirementFormObject(ErrorObject):
             relation_types=grammar_element_relations,
             document_markup=document.config.markup or SDocMarkup.RST,
         )
+        if traceability_index is not None:
+            form_object.derived_relations = (
+                RequirementFormObject._get_derived_relations(
+                    requirement, traceability_index
+                )
+            )
+        return form_object
+
+    @staticmethod
+    def _get_derived_relations(
+        requirement: SDocNode, traceability_index: TraceabilityIndex
+    ) -> List[DerivedRelationRow]:
+        """
+        Parent/child relations of this node that are stored on the other
+        node, so they cannot be edited in this node's form.
+        """
+        stored: Set[Tuple[str, str, Optional[str]]] = set()
+        for relation_ in requirement.relations:
+            if isinstance(relation_, (ParentReqReference, ChildReqReference)):
+                stored.add(
+                    (relation_.ref_type, relation_.ref_uid, relation_.role)
+                )
+        rows: List[DerivedRelationRow] = []
+        for relation_type, nodes_with_roles in (
+            (
+                "Parent",
+                traceability_index.get_parent_relations_with_roles(requirement),
+            ),
+            (
+                "Child",
+                traceability_index.get_child_relations_with_roles(requirement),
+            ),
+        ):
+            for node_, role_ in nodes_with_roles:
+                if not isinstance(node_.reserved_uid, str):
+                    continue
+                if (relation_type, node_.reserved_uid, role_) in stored:
+                    continue
+                rows.append(
+                    DerivedRelationRow(
+                        relation_type=relation_type, role=role_, owner=node_
+                    )
+                )
+        return rows
 
     @staticmethod
     def clone_from_requirement(
