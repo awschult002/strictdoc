@@ -8,17 +8,9 @@
   When enabled, the listener reads the text content of sdoc-field-content at click time.
 
   Expected structure (used by copy_to_clipboard.js):
-    sdoc-field                           — boundary for closest() lookup
-    sdoc-field-content                   — source of the text to copy
-    sdoc-field-service                   — feedback root for icons and cover animation
-    data-copy-clipboard-target="button"  — marks the copy button
-    data-copy-clipboard-target="cover"   — orange fade animation
-    data-copy-clipboard-target="copyIcon"
-    data-copy-clipboard-target="doneIcon"
-
-  ! Enabling this option for PDF is highly not recommended.
-
-  Requires: field_content
+    .copy_to_clipboard-button  — the copy button
+    .copy_to_clipboard-cover   — orange fade animation
+  The button's icon is switched to the "done" icon by the script.
 #}
 
 {%- if copy_to_clipboard is defined -%}
@@ -29,14 +21,9 @@
   <sdoc-field-service>
 
     <div class="copy_to_clipboard">
-      <div class="copy_to_clipboard-cover" data-copy-clipboard-target="cover">
-        <div title="Click to copy" class="copy_to_clipboard-button action_button" data-copy-clipboard-target="button">
-          <span style="display: contents;" data-copy-clipboard-target="copyIcon">
-            <svg class="svg_icon" viewBox="0 0 16 16"><use href="#sdoc-icon-copy"/></svg>
-          </span>
-          <span style="display: none;" data-copy-clipboard-target="doneIcon">
-            <svg class="svg_icon" viewBox="0 0 16 16"><use href="#sdoc-icon-done"/></svg>
-          </span>
+      <div class="copy_to_clipboard-cover">
+        <div title="Click to copy" class="copy_to_clipboard-button action_button">
+          <svg class="svg_icon"><use href="#sdoc-icon-copy"/></svg>
         </div>
       </div>
     </div>
