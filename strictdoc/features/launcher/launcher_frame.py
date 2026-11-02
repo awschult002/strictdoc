@@ -167,6 +167,8 @@ class StrictDocLauncher(tk.Tk):
         # "<workspace>/export" once a workspace has been selected,
         # but the user can customize it via the Browse button.
         self.export_path_var = tk.StringVar()
+        # Optional --filter-nodes query for the export, empty by default.
+        self.export_filter_var = tk.StringVar()
 
         self._build_ui()
 
@@ -904,6 +906,7 @@ class StrictDocLauncher(tk.Tk):
         export_format: str,
         on_success: Callable[[], None],
         on_error: Callable[[str], None],
+        filter_query: str = "",
     ) -> None:
         assert self.workspace_dir is not None
         workspace_dir = self.workspace_dir
@@ -915,6 +918,8 @@ class StrictDocLauncher(tk.Tk):
             "--output-dir",
             output_dir,
         ]
+        if filter_query:
+            cmd += ["--filter-nodes", filter_query]
 
         def worker() -> None:
             try:
@@ -1017,6 +1022,14 @@ class StrictDocLauncher(tk.Tk):
             content, text="Browse ...", command=self.choose_export_path
         )
         browse_btn.grid(row=1, column=2, **padding)
+
+        # Filter query (passed to --filter-nodes) ------------------------
+        ttk.Label(content, text="Filter query:").grid(
+            row=3, column=0, sticky="w", **padding
+        )
+        ttk.Entry(content, textvariable=self.export_filter_var, width=40).grid(
+            row=3, column=1, columnspan=2, sticky="we", **padding
+        )
 
         # ProgressBar  -------------------------------------------------
         progress = ttk.Progressbar(progress_area, mode="indeterminate")
@@ -1128,6 +1141,7 @@ class StrictDocLauncher(tk.Tk):
                 export_format=self.export_format_var.get(),
                 on_success=_on_export_success_callback,
                 on_error=on_export_error,
+                filter_query=self.export_filter_var.get().strip(),
             )
 
         export_btn.configure(command=start_export)
