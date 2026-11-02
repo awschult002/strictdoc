@@ -393,3 +393,33 @@ end architecture rtl;
     ]
     assert info.functions[2].markers[0].reqs == ["REQ-1"]
     assert info.functions[4].markers[0].reqs == ["REQ-2"]
+
+
+def test_14_markers_in_dash_dash_bang_and_triple_dash_comments():
+    input_string = b"""\
+--! @relation(REQ-1, scope=file)
+
+--! @relation(REQ-2, scope=function)
+entity Top is
+end entity;
+
+architecture Rtl of Top is
+begin
+  --- @relation(REQ-3, scope=range_start)
+  P_Main : process
+  begin
+    wait; --! @relation(REQ-4, scope=line)
+  end process;
+  --- @relation(REQ-3, scope=range_end)
+end architecture;
+"""
+
+    reader = SourceFileTraceabilityReader_VHDL()
+
+    info = reader.read(input_string, file_path="top.vhd")
+
+    assert info.markers[0].reqs == ["REQ-1"]
+    assert info.functions[0].markers[0].reqs == ["REQ-2"]
+    assert info.ng_map_reqs_to_markers["REQ-3"][0].ng_range_line_begin == 9
+    assert info.ng_map_reqs_to_markers["REQ-3"][0].ng_range_line_end == 14
+    assert info.ng_map_reqs_to_markers["REQ-4"][0].ng_range_line_begin == 12

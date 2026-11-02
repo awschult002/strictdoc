@@ -253,9 +253,10 @@ class SourceFileTraceabilityReader_VHDL:
         ]
         # The common comment preprocessor does not know "--". Blank out the
         # comment delimiters with the same length to keep the byte offsets
-        # for write-back.
+        # for write-back. Also blank out the extra "-" or "!" of "---" and
+        # "--!" (Doxygen) comments.
         comment_text = re.sub(
-            r"^(\s*)--|/\*|\*/",
+            r"^(\s*)--[-!]*|/\*|\*/",
             lambda match_: " " * len(match_.group(0)),
             comment_bytes.decode("utf8"),
             flags=re.MULTILINE,
