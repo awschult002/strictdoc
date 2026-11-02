@@ -52,10 +52,9 @@
     // An inline anchor (RST/Markdown [ANCHOR: ...]) is raw HTML injected
     // into the surrounding content, so its copy-button icon ends up
     // inside sdoc-autogen too and would otherwise match SEL_MEDIA - a UI
-    // control, not zoomable document media. data-copy-clipboard-target
-    // marks every element of that control by contract (copy_to_clipboard.js),
-    // so this excludes the whole family regardless of where it's nested.
-    if (el.closest('[data-copy-clipboard-target]')) return;
+    // control, not zoomable document media. Skip anything inside a
+    // copy-to-clipboard control (see SEL_BUTTON in copy_to_clipboard.js).
+    if (el.closest('.copy_to_clipboard, .copy_stable_link-button, .anchor_button')) return;
     if (el.tagName === 'IMG' && !el.complete) {
       el.addEventListener('load', () => markZoomable(el), { once: true });
       return;
