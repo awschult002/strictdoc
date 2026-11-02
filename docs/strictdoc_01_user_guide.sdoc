@@ -3416,6 +3416,22 @@ statistics. Entities, architectures and processes are not counted.
       procedure hello_world;
     end package hello;
 
+The VHDL reader uses the same comment rules as the Ada reader. It also finds
+markers in VHDL-2008 ``/* */`` comments. A ``/* */`` comment and the ``--``
+lines that follow it with no blank line form one block. A ``scope=function``
+marker must be directly above the function, procedure, entity, architecture or
+labeled process.
+
+.. code:: vhdl
+
+    /* Copyright (c) ACME.
+       @relation(REQ-1, scope=file) */
+    library ieee;
+
+    --! @relation(REQ-2, scope=function)
+    entity counter is
+    end entity counter;
+
 For Rust, ``@relation`` marker can be placed inside `doc comments`_ to
 automatically infer the linked item. This works for almost all Rust language
 elements like modules, functions, traits, enums or structs.
@@ -4519,7 +4535,8 @@ The behavior of the wildcards is the same as for the
 
 The paths are relative to ``source_root_path``. A pattern like ``**/*.adb``
 needs at least one folder, so it does not match ``hello.adb`` at the top of
-the source root. Use ``**.adb`` to match the files in all folders.
+the source root. Use ``**.adb`` to match the files in all folders. The same
+applies to ``**/*.vhd`` and ``**.vhd``.
 
 .. note::
 
