@@ -42,11 +42,6 @@ class JinjaEnvironment:
         )
 
 
-# Drop the newline after a block tag and the indentation before it, so the
-# template indentation does not end up in the exported HTML (#3238).
-JINJA_WHITESPACE_OPTIONS = {"trim_blocks": True, "lstrip_blocks": True}
-
-
 class HTMLTemplates:
     @staticmethod
     def create(
@@ -79,7 +74,6 @@ class NormalHTMLTemplates(HTMLTemplates):
                 undefined=StrictUndefined,
                 extensions=[AssertExtension],
                 autoescape=True,
-                **JINJA_WHITESPACE_OPTIONS,
             )
         )
 
@@ -126,9 +120,7 @@ class CompiledHTMLTemplates(HTMLTemplates):
         Identify the template files (and the Jinja version) a compiled cache
         was made from, cheaply: names, sizes and modification times.
         """
-        hasher = hashlib.sha256(
-            f"{jinja2.__version__}:{JINJA_WHITESPACE_OPTIONS}".encode("utf-8")
-        )
+        hasher = hashlib.sha256(jinja2.__version__.encode("utf-8"))
         for path_to_templates in environment.get_path_to_html_templates():
             for root, dirs, files in os.walk(path_to_templates):
                 dirs.sort()
@@ -165,7 +157,6 @@ class CompiledHTMLTemplates(HTMLTemplates):
             undefined=StrictUndefined,
             extensions=[AssertExtension],
             autoescape=True,
-            **JINJA_WHITESPACE_OPTIONS,
         )
         # TODO: Check if this line is still needed (might be some older workaround).
         jinja_environment.globals.update(isinstance=isinstance)
@@ -231,7 +222,6 @@ class CompiledHTMLTemplates(HTMLTemplates):
                 undefined=StrictUndefined,
                 extensions=[AssertExtension],
                 autoescape=True,
-                **JINJA_WHITESPACE_OPTIONS,
             )
         )
         return self._jinja_environment
