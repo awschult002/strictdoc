@@ -914,6 +914,7 @@ def create_main_router(
                 requirement=requirement,
                 revision=revision,
                 context_document_mid=context_document_mid,
+                traceability_index=export_action.traceability_index,
             )
         )
         document: SDocDocument = assert_cast(
