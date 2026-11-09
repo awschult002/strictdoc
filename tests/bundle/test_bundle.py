@@ -692,6 +692,19 @@ def wait_for_url(url, proc, log, timeout=180):
                          + log.read_text(errors="replace")[-4000:])
 
 
+def wait_for_log_line(launcher, line, timeout=30):
+    """
+    The server can answer HTTP a moment before the launcher's readiness probe
+    prints its line, so poll the log instead of reading it once.
+    """
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if line in launcher.text():
+            return True
+        time.sleep(0.25)
+    return False
+
+
 def port_has_listener(port):
     """
     True if a process accepts connections on the port. A bind test does not
@@ -775,7 +788,9 @@ def test_lch_02_launcher_opens_a_project_without_a_window(sd, work):
                                     launcher.log)
         assert status == 200
         assert "project/input.html" in html, html[-2000:]
-        assert f"StrictDoc server is ready: {launcher.base}/" in launcher.text()
+        assert wait_for_log_line(
+            launcher, f"StrictDoc server is ready: {launcher.base}/"
+        ), launcher.text()[-4000:]
     finally:
         launcher.stop()
     assert wait_until_port_is_free(launcher.port), launcher.text()[-4000:]
