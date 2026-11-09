@@ -46,6 +46,7 @@
 </head>
 
 <body data-viewtype="{%- block viewtype -%}{%- endblock viewtype -%}" data-turbo="false">
+{% include "_shared/svg_icon_sprite.jinja.html" %}
 
 <div class="mars">
   {% if view_object.project_config.is_running_on_server %}

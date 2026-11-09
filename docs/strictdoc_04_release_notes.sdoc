@@ -50,15 +50,27 @@ releases:
 <<<
 
 [[SECTION]]
-MID: 6dfb5140e7a5437a83c62e7c7adc16c2
+MID: 075053bdc64242158c67f8041d272ac8
 TITLE: Unreleased
 
 [TEXT]
-MID: 6361a90f704f48f5a020eb221e71d6bc
+MID: 310b180b4d87405783f7bbeddc7ec811
 STATEMENT: >>>
 This release contains the following enhancements:
 
-1\) On the DOCUMENT and TRACE screens, hovering over or focusing a relation
+1\) The experimental desktop launcher (``strictdoc launcher``) now opens with
+a start dialog. The dialog opens an existing or recent project, or creates a
+new project from the ``hello_world`` or ``empty`` starter template. The
+launcher then starts the server on a free port and opens the project in the
+browser. When the launcher closes, it stops the server and all processes that
+the server started.
+
+2\) The PyInstaller bundle now contains the desktop launcher as a separate
+executable: ``strictdoc_launcher.exe`` on Windows (without a console window),
+``StrictDoc.app`` on macOS and ``strictdoc_launcher`` on Linux. The
+``strictdoc`` command-line executable does not change.
+
+3\) On the DOCUMENT and TRACE screens, hovering over or focusing a relation
 link now shows a card about the link target. For a Parent or Child link, with
 or without a role, the card shows the UID, title, and statement of the linked
 node. For a File link, the card shows the file path and the first lines of the
