@@ -93,6 +93,38 @@
     {% include "components/form/row/row_with_relation.jinja" %}
   {%- endfor -%}
 
+  {#- Relations stored on the other node: read-only, edited via the owner. -#}
+  {%- for derived_ in form_object.derived_relations -%}
+  <sdoc-form-row data-testid="requirement-form-derived-relation-row">
+    <sdoc-form-row-main>
+      <span data-testid="requirement-form-derived-relation-label">
+        {{ derived_.relation_type }}{% if derived_.role %} ({{ derived_.role }}){% endif %} {{ derived_.owner_uid }}
+        <em>(defined on {{ derived_.owner_uid }})</em>
+      </span>
+    </sdoc-form-row-main>
+    <sdoc-form-row-aside>
+      {%- if derived_.owner_document_mid == form_object.document_mid -%}
+      <a
+        class="action_button"
+        href="/actions/document/edit_requirement?node_id={{ derived_.owner_mid }}&context_document_mid={{ form_object.context_document_mid }}"
+        data-turbo-action="replace"
+        data-turbo="true"
+        title="Edit this relation on {{ derived_.owner_uid }}"
+        data-testid="form-action-edit-derived-relation"
+      >{% include "icons/ico16_edit.svg" %}</a>
+      {%- else -%}
+      <a
+        class="action_button"
+        href="{{ renderer.link_renderer.render_node_link(derived_.owner, renderer.context_document, document_type) }}"
+        data-turbo="false"
+        title="Go to {{ derived_.owner_uid }} (unsaved changes in this form are discarded)"
+        data-testid="form-action-edit-derived-relation"
+      >{% include "icons/ico16_edit.svg" %}</a>
+      {%- endif -%}
+    </sdoc-form-row-aside>
+  </sdoc-form-row>
+  {%- endfor -%}
+
   <div id="requirement_{{ form_object.requirement_mid }}__new_relation"></div>
   <sdoc-form-row>
     <a
