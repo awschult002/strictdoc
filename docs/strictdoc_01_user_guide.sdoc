@@ -5618,6 +5618,16 @@ it:
 
 On the Search screen, the saved queries are listed in a drop-down menu next to
 the search field. Selecting a query runs it.
+
+When the current search is a valid query that is not saved yet, the Search
+screen also shows a field for a title and a "Save query" button. Saving adds a
+``SavedQuery(...)`` entry to the end of the ``queries=[...]`` list in
+``strictdoc_config.py``, or adds the ``queries`` argument if the config does
+not have one yet. The rest of the file, including comments and formatting, is
+left as it is. Saving only works if ``queries`` is written as a list in the
+``ProjectConfig(...)`` call of ``create_config()``. If the list is built in
+another way, or the project uses the legacy ``strictdoc.toml`` config, add the
+query to the config file by hand.
 <<<
 
 [[/SECTION]]

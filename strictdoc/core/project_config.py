@@ -599,6 +599,9 @@ class ProjectConfig:
         self.config_last_update: Optional[datetime.datetime] = (
             _config_last_update
         )
+        # Path to the strictdoc_config.py file this config was loaded from.
+        # None for the default config and for legacy strictdoc.toml files.
+        self.config_py_path: Optional[str] = None
         self.is_running_on_server: bool = False
         self.watch_enabled: bool = False
 
@@ -1441,6 +1444,7 @@ class ProjectConfigLoader:
         project_config.config_last_update = get_file_modification_time(
             config_py_path
         )
+        project_config.config_py_path = config_py_path
         return project_config
 
     @staticmethod
