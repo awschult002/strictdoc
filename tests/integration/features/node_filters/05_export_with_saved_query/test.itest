@@ -1,0 +1,4 @@
+RUN: %expect_exit 0 %strictdoc export %S/input.sdoc --formats=sdoc --output-dir=%T --query "Requirements 2 and 4" | filecheck %s --dump-input=fail
+CHECK: Total execution time
+
+RUN: %diff %S/expected/output.sdoc %T/sdoc/input.sdoc

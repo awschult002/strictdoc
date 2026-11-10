@@ -27,6 +27,7 @@ import toml
 from strictdoc import __version__, environment
 from strictdoc.backend.reqif.sdoc_reqif_fields import ReqIFProfile
 from strictdoc.backend.sdoc.constants import SDocMarkup
+from strictdoc.cli.base_command import CLIValidationError
 from strictdoc.commands.convert_config import ConvertCommandConfig
 from strictdoc.commands.export_config import ExportCommandConfig
 from strictdoc.commands.format_config import FormatCommandConfig
@@ -94,6 +95,57 @@ class SourceNodesEntry:
     node_type: str
     sdoc_to_source_map: Dict[str, str] = field(default_factory=dict)
     full_path: Optional[Path] = None
+
+
+@dataclass
+class SavedQuery:
+    """
+    A search query saved in the project config under a human-readable title,
+    so that a team can share and reuse it on the Search screen and with
+    "strictdoc export --query".
+    """
+
+    title: str
+    value: str
+
+
+def validate_saved_queries(queries: List[SavedQuery]) -> None:
+    # Imported locally to avoid a circular import: the query engine imports
+    # the traceability index, which imports this module.
+    from strictdoc.core.query_engine.query_reader import (  # noqa: PLC0415
+        QueryReader,
+    )
+
+    if not isinstance(queries, list):
+        raise ValueError(
+            f"config: queries: expected a list of SavedQuery: {queries!r}."
+        )
+    seen_titles = set()
+    for query_ in queries:
+        if not isinstance(query_, SavedQuery):
+            raise ValueError(
+                f"config: queries: expected a SavedQuery, got: {query_!r}."
+            )
+        if not isinstance(query_.title, str) or len(query_.title.strip()) == 0:
+            raise ValueError(
+                "config: queries: a query title must not be empty."
+            )
+        if query_.title in seen_titles:
+            raise ValueError(
+                f"config: queries: duplicate query title: '{query_.title}'."
+            )
+        seen_titles.add(query_.title)
+        if not isinstance(query_.value, str) or len(query_.value.strip()) == 0:
+            raise ValueError(
+                f"config: queries: query '{query_.title}' has an empty value."
+            )
+        try:
+            QueryReader.read(query_.value.strip())
+        except Exception as exception_:
+            raise ValueError(
+                f"config: queries: query '{query_.title}' could not be "
+                f"parsed: {exception_}"
+            ) from exception_
 
 
 class ProjectFeature(str, Enum):
@@ -232,6 +284,9 @@ class ProjectConfig:
         # from its resolved prefix and next available number.
         custom_node_uid_function: Optional[CustomNodeUidFunction] = None,
         formats: Optional[List["Format"]] = None,
+        # Search queries saved with a title, shown on the Search screen and
+        # usable with "strictdoc export --query <title>".
+        queries: Optional[List[SavedQuery]] = None,
         # Reserved for StrictDoc's internal use.
         _config_last_update: Optional[datetime.datetime] = None,
     ) -> None:
@@ -401,6 +456,13 @@ class ProjectConfig:
         self.source_nodes: List[SourceNodesEntry] = (
             source_nodes if source_nodes is not None else []
         )
+
+        #
+        # queries
+        #
+        queries = queries if queries is not None else []
+        validate_saved_queries(queries)
+        self.queries: List[SavedQuery] = queries
 
         # Settings derived from the command-line parameters.
 
@@ -780,6 +842,18 @@ class ProjectConfig:
         self.export_included_documents = export_config.included_documents
         self.generate_bundle_document = export_config.generate_bundle_document
         self.filter_nodes = export_config.filter_nodes
+        if export_config.query is not None:
+            saved_query = self.get_saved_query(export_config.query)
+            if saved_query is None:
+                known_titles = ", ".join(
+                    f"'{query_.title}'" for query_ in self.queries
+                )
+                raise CLIValidationError(
+                    f"export: --query: no saved query with the title "
+                    f"'{export_config.query}' in the project config. "
+                    f"Saved queries: {known_titles or 'none'}."
+                )
+            self.filter_nodes = saved_query.value.strip()
         self.excel_export_fields = export_config.fields
         self.view = export_config.view
 
@@ -979,6 +1053,12 @@ class ProjectConfig:
             )
             if grammar_path_.startswith("./"):
                 self.grammars[grammar_alias_] = grammar_path_.removeprefix("./")
+
+    def get_saved_query(self, title: str) -> Optional[SavedQuery]:
+        for query_ in self.queries:
+            if query_.title == title:
+                return query_
+        return None
 
     def is_feature_activated(self, feature: ProjectFeature) -> bool:
         return feature in self.project_features

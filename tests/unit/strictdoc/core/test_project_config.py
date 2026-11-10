@@ -8,6 +8,7 @@ from strictdoc.core.project_config import (
     ProjectConfig,
     ProjectConfigLoader,
     ProjectFeature,
+    SavedQuery,
 )
 from strictdoc.features.html2pdf.html2pdf_format import HTML2PDFFormat
 
@@ -184,3 +185,82 @@ def test_82_lazy_document_loading_threshold_zero_disables():
 def test_83_lazy_document_loading_threshold_negative_rejected():
     with pytest.raises(AssertionError):
         _ = ProjectConfig(lazy_document_loading_threshold=-1)
+
+
+#
+# Saved queries.
+#
+def test_90_saved_queries_default_to_empty_list():
+    project_config = ProjectConfig()
+    assert project_config.queries == []
+
+
+def test_91_saved_queries_are_stored_and_looked_up_by_title():
+    query = SavedQuery(title="Requirements", value="node.is_requirement")
+    project_config = ProjectConfig(queries=[query])
+    assert project_config.queries == [query]
+    assert project_config.get_saved_query("Requirements") is query
+    assert project_config.get_saved_query("Unknown") is None
+
+
+def test_92_saved_queries_reject_empty_title():
+    with pytest.raises(ValueError, match="title must not be empty"):
+        _ = ProjectConfig(
+            queries=[SavedQuery(title="  ", value="node.is_requirement")]
+        )
+
+
+def test_93_saved_queries_reject_duplicate_titles():
+    with pytest.raises(ValueError, match="duplicate query title: 'Same'"):
+        _ = ProjectConfig(
+            queries=[
+                SavedQuery(title="Same", value="node.is_requirement"),
+                SavedQuery(title="Same", value="node.is_section"),
+            ]
+        )
+
+
+def test_94_saved_queries_reject_value_that_does_not_parse():
+    with pytest.raises(ValueError, match="query 'Broken' could not be parsed"):
+        _ = ProjectConfig(
+            queries=[SavedQuery(title="Broken", value="node.is_nothing(")]
+        )
+
+
+def test_95_saved_queries_reject_empty_value():
+    with pytest.raises(ValueError, match="query 'Empty' has an empty value"):
+        _ = ProjectConfig(queries=[SavedQuery(title="Empty", value="")])
+
+
+def test_96_saved_queries_reject_items_that_are_not_saved_queries():
+    with pytest.raises(ValueError, match="expected a SavedQuery"):
+        _ = ProjectConfig(queries=[{"title": "A", "value": "node.is_section"}])
+
+
+def test_97_saved_queries_load_from_python_config(tmp_path):
+    path_to_config = tmp_path / "strictdoc_config.py"
+    path_to_config.write_text(
+        """\
+from strictdoc.api import ProjectConfig, SavedQuery
+
+
+def create_config():
+    return ProjectConfig(
+        queries=[
+            SavedQuery(
+                title="System requirements",
+                value='(node.is_requirement and "System" in node["TITLE"])',
+            ),
+        ],
+    )
+"""
+    )
+    project_config = ProjectConfigLoader.load_from_path_or_get_default(
+        path_to_config=str(path_to_config)
+    )
+    assert project_config.queries == [
+        SavedQuery(
+            title="System requirements",
+            value='(node.is_requirement and "System" in node["TITLE"])',
+        )
+    ]
