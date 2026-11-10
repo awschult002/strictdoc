@@ -5307,11 +5307,13 @@ def create_main_router(
             url_to_document
         )
         with lock_manager.acquire_global_read():
-            if document_relative_path.relative_path.startswith(
+            # The native path has backslashes on Windows, so match the
+            # POSIX one.
+            if document_relative_path.relative_path_posix.startswith(
                 "_source_files/"
             ):
                 return get_source_relation_previews(
-                    document_relative_path.relative_path
+                    document_relative_path.relative_path_posix
                 )
             document_tree = assert_cast(
                 export_action.traceability_index.document_tree,
