@@ -55,3 +55,10 @@ class Screen_Search(Screen):  # pylint: disable=invalid-name
             '//button[@data-testid="form-submit-action"]',
         )
         return Screen_SearchResults(self.test_case)
+
+    def do_select_saved_query(self, title: str) -> Screen_SearchResults:
+        self.test_case.select_option_by_text(
+            '//select[@data-testid="saved-queries-select"]',
+            title,
+        )
+        return Screen_SearchResults(self.test_case)

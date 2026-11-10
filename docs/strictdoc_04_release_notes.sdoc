@@ -82,6 +82,12 @@ copied into the pages. The browser loads a small ``-relation-previews.js``
 file next to the linked document or source file page the first time such a
 link is hovered. The static export writes these files, and the server renders
 them on request.
+
+4\) Queries can now be saved in ``strictdoc_config.py`` with a title, using
+the new ``queries`` option and the ``SavedQuery`` class. The Search screen
+lists the saved queries in a drop-down menu, the new ``strictdoc queries``
+command prints them, and ``strictdoc export --query "<title>"`` filters the
+export with one of them. See [LINK: SECTION-UG-Saved-queries].
 <<<
 
 [[/SECTION]]

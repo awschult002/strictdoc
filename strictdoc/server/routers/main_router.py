@@ -901,7 +901,7 @@ def create_main_router(
         "/actions/document/edit_requirement", response_class=Response
     )
     def get_edit_requirement(
-        node_id: str, context_document_mid: str
+        node_id: str, context_document_mid: str, tab: Optional[str] = None
     ) -> Response:
         """
         @relation(SDOC-SRS-55, scope=function)
@@ -951,6 +951,7 @@ def create_main_router(
             renderer=markup_renderer,
             form_object=form_object,
             document_type=DocumentType.DOCUMENT,
+            active_tab="Relations" if tab == "Relations" else "Fields",
         )
         return HTMLResponse(
             content=output,
@@ -2554,7 +2555,9 @@ def create_main_router(
             traceability_index=export_action.traceability_index,
             project_config=project_config,
         )
-        update_result = update_command.perform()
+        update_result = assert_cast(
+            update_command.perform(), CreateOrUpdateNodeResult
+        )
         write_document_to_file(document)
         revisions[node_mid_str] += 1
 
@@ -5305,11 +5308,13 @@ def create_main_router(
             url_to_document
         )
         with lock_manager.acquire_global_read():
-            if document_relative_path.relative_path.startswith(
+            # The native path has backslashes on Windows, so match the
+            # POSIX one.
+            if document_relative_path.relative_path_posix.startswith(
                 "_source_files/"
             ):
                 return get_source_relation_previews(
-                    document_relative_path.relative_path
+                    document_relative_path.relative_path_posix
                 )
             document_tree = assert_cast(
                 export_action.traceability_index.document_tree,

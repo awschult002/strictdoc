@@ -21,6 +21,7 @@ from strictdoc.commands.manage_assets_command import ManageAssetsCommand
 from strictdoc.commands.manage_autouid_command import ManageAutoUIDCommand
 from strictdoc.commands.manage_new_command import ManageNewCommand
 from strictdoc.commands.new_command import NewCommand
+from strictdoc.commands.queries_command import QueriesCommand
 from strictdoc.commands.server import ServerCommand
 from strictdoc.commands.version_command import VersionCommand
 from strictdoc.helpers.coverage import register_code_coverage_hook
@@ -45,6 +46,7 @@ def create_command_registry() -> Dict[str, Any]:
             "new": ManageNewCommand,
         },
         "new": NewCommand,
+        "queries": QueriesCommand,
         "server": ServerCommand,
         "version": VersionCommand,
     }

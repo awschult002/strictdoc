@@ -18,6 +18,31 @@
       {% include "components/button/search.jinja" %}
   </form>
 
+{%- if view_object.saved_queries|length > 0 %}
+  <form
+    action="/search"
+    method="GET"
+    data-testid="saved-queries-form"
+  >
+    <label for="saved_query">Saved queries</label>
+    <select
+      id="saved_query"
+      name="q"
+      data-testid="saved-queries-select"
+      onchange="this.form.requestSubmit()"
+    >
+      <option value="" disabled{% if view_object.get_current_saved_query() is none %} selected{% endif %}>Select a saved query</option>
+      {%- for saved_query_ in view_object.saved_queries %}
+      <option
+        value="{{ saved_query_.value }}"
+        title="{{ saved_query_.value }}"
+        {% if view_object.get_current_saved_query() is sameas saved_query_ %}selected{% endif %}
+      >{{ saved_query_.title }}</option>
+      {%- endfor %}
+    </select>
+  </form>
+{%- endif %}
+
 {%- if view_object.search_value|length > 0 -%}
   {%- if view_object.error is none -%}
     {%- if view_object.search_results|length == 0 -%}

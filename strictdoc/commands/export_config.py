@@ -33,6 +33,7 @@ class ExportCommandConfig:
         chromedriver: Optional[str],
         chrome_binary: Optional[str],
         disable_ssl_check: bool,
+        query: Optional[str] = None,
     ):
         assert isinstance(input_paths, list), f"{input_paths}"
         self.debug: bool = debug
@@ -49,6 +50,7 @@ class ExportCommandConfig:
         self.enable_mathjax: bool = enable_mathjax
         self.included_documents: bool = included_documents
         self.filter_nodes: Optional[str] = filter_nodes
+        self.query: Optional[str] = query
         self.reqif_profile: Optional[str] = reqif_profile
         self.reqif_multiline_is_xhtml: bool = reqif_multiline_is_xhtml
         self.reqif_enable_mid: bool = reqif_enable_mid
@@ -72,6 +74,10 @@ class ExportCommandConfig:
         return path_to_config
 
     def validate(self) -> None:
+        if self.query is not None and self.filter_nodes is not None:
+            raise CLIValidationError(
+                "export: --query and --filter-nodes cannot be used together."
+            )
         for idx_, input_path_ in enumerate(self.input_paths.copy()):
             if not os.path.exists(input_path_):
                 raise CLIValidationError(

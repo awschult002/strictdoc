@@ -1,0 +1,2 @@
+RUN: %expect_exit 1 %strictdoc export %S/input.sdoc --formats=sdoc --output-dir=%T --query "Does not exist" | filecheck %s --dump-input=fail
+CHECK: error: export: --query: no saved query with the title 'Does not exist' in the project config. Saved queries: 'Requirements 2 and 4'.
