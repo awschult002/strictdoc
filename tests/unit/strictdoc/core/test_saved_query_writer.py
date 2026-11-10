@@ -18,7 +18,7 @@ NEW_QUERY = "SavedQuery(title='New', value='node.is_section')"
 
 def load_queries(tmp_path, source: str) -> List[SavedQuery]:
     path_to_config = tmp_path / "strictdoc_config.py"
-    path_to_config.write_text(source)
+    path_to_config.write_text(source, encoding="utf-8")
     project_config = ProjectConfigLoader.load_from_python(
         config_py_path=str(path_to_config)
     )
@@ -269,7 +269,7 @@ def test_12_keeps_windows_line_endings():
 
 def create_project_config(tmp_path, source: str) -> ProjectConfig:
     path_to_config = tmp_path / "strictdoc_config.py"
-    path_to_config.write_text(source)
+    path_to_config.write_text(source, encoding="utf-8")
     return ProjectConfigLoader.load_from_python(
         config_py_path=str(path_to_config)
     )
@@ -297,7 +297,9 @@ def test_20_save_query_writes_file_and_reloads_queries(tmp_path):
         SavedQuery(title="Old", value="node.is_requirement"),
         SavedQuery(title="New", value="node.is_section"),
     ]
-    assert NEW_QUERY in (tmp_path / "strictdoc_config.py").read_text()
+    assert NEW_QUERY in (tmp_path / "strictdoc_config.py").read_text(
+        encoding="utf-8"
+    )
 
 
 @pytest.mark.parametrize(
@@ -314,9 +316,9 @@ def test_21_save_query_rejects_bad_input_and_keeps_file(
     project_config = create_project_config(tmp_path, CONFIG_WITH_ONE_QUERY)
     with pytest.raises(SavedQueryWriteError, match=error):
         save_query_to_project_config(project_config, title=title, value=value)
-    assert (
-        tmp_path / "strictdoc_config.py"
-    ).read_text() == CONFIG_WITH_ONE_QUERY
+    assert (tmp_path / "strictdoc_config.py").read_text(
+        encoding="utf-8"
+    ) == CONFIG_WITH_ONE_QUERY
 
 
 def test_22_save_query_refuses_config_not_loaded_from_strictdoc_config_py():
@@ -345,5 +347,7 @@ def create_config() -> ProjectConfig:
         save_query_to_project_config(
             project_config, title="New", value="node.is_section"
         )
-    assert (tmp_path / "strictdoc_config.py").read_text() == source
+    assert (tmp_path / "strictdoc_config.py").read_text(
+        encoding="utf-8"
+    ) == source
     assert project_config.queries == []
