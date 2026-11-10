@@ -901,7 +901,7 @@ def create_main_router(
         "/actions/document/edit_requirement", response_class=Response
     )
     def get_edit_requirement(
-        node_id: str, context_document_mid: str
+        node_id: str, context_document_mid: str, tab: Optional[str] = None
     ) -> Response:
         """
         @relation(SDOC-SRS-55, scope=function)
@@ -951,6 +951,7 @@ def create_main_router(
             renderer=markup_renderer,
             form_object=form_object,
             document_type=DocumentType.DOCUMENT,
+            active_tab="Relations" if tab == "Relations" else "Fields",
         )
         return HTMLResponse(
             content=output,

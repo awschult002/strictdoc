@@ -25,7 +25,8 @@
   <input type="hidden" id="document_markup" name="document_markup" value="{{ form_object.document_markup }}" />
 
 {# Fields #}
-<sdoc-tab-content id="Fields" active>
+{%- set relations_tab_is_active = active_tab is defined and active_tab == "Relations" %}
+<sdoc-tab-content id="Fields"{% if not relations_tab_is_active %} active{% endif %}>
   {% set text_field_row_context = namespace() %}
   {% set requirement_mid = form_object.requirement_mid %}
   {% set document_mid = form_object.document_mid %}
@@ -82,7 +83,7 @@
 
 {# Relations #}
 {% if form_object.relation_types %}
-<sdoc-tab-content id="Relations">
+<sdoc-tab-content id="Relations"{% if relations_tab_is_active %} active{% endif %}>
   {% set relation_row_context = namespace() %}
 
   {%- for field_ in form_object.enumerate_reference_fields() -%}
@@ -106,7 +107,7 @@
       {%- if derived_.owner_document_mid == form_object.document_mid -%}
       <a
         class="action_button"
-        href="/actions/document/edit_requirement?node_id={{ derived_.owner_mid }}&context_document_mid={{ form_object.context_document_mid }}"
+        href="/actions/document/edit_requirement?node_id={{ derived_.owner_mid }}&context_document_mid={{ form_object.context_document_mid }}&tab=Relations"
         data-turbo-action="replace"
         data-turbo="true"
         title="Edit this relation on {{ derived_.owner_uid }}"
