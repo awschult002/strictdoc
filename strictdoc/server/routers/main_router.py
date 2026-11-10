@@ -2554,7 +2554,9 @@ def create_main_router(
             traceability_index=export_action.traceability_index,
             project_config=project_config,
         )
-        update_result = update_command.perform()
+        update_result = assert_cast(
+            update_command.perform(), CreateOrUpdateNodeResult
+        )
         write_document_to_file(document)
         revisions[node_mid_str] += 1
 
