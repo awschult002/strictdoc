@@ -23,7 +23,7 @@ from strictdoc.core.document_tree import DocumentTree
 from strictdoc.core.document_tree_iterator import DocumentTreeIterator
 from strictdoc.core.file_system.file_tree import FileOrFolderEntry
 from strictdoc.core.file_system.source_tree import SourceFile
-from strictdoc.core.project_config import ProjectConfig
+from strictdoc.core.project_config import ProjectConfig, SavedQuery
 from strictdoc.core.traceability_index import TraceabilityIndex
 from strictdoc.export.html.document_type import DocumentType
 from strictdoc.export.html.html_templates import HTMLTemplates, JinjaEnvironment
@@ -56,6 +56,7 @@ class SearchScreenViewObject:
         self.search_results: List[SDocExtendedElementIF] = search_results
         self.search_value: str = search_value
         self.error: Optional[str] = error
+        self.saved_queries: List[SavedQuery] = project_config.queries
 
         link_renderer = LinkRenderer(
             root_path="", static_path=project_config.dir_for_sdoc_assets
@@ -82,6 +83,13 @@ class SearchScreenViewObject:
         self.document_type: DocumentType = DocumentType.DOCUMENT
         self.link_document_type: DocumentType = DocumentType.DOCUMENT
         self.document: Optional[SDocDocument] = None
+
+    def get_current_saved_query(self) -> Optional[SavedQuery]:
+        search_value = self.search_value.strip()
+        for saved_query_ in self.saved_queries:
+            if saved_query_.value.strip() == search_value:
+                return saved_query_
+        return None
 
     def get_document_level(self) -> int:
         return 0

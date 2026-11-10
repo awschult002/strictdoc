@@ -226,6 +226,15 @@ class ExportCommand(BaseCommand):
             help="Filter which nodes will be exported.",
         )
         command_parser_export.add_argument(
+            "--query",
+            dest="query",
+            type=str,
+            help=(
+                "Filter which nodes will be exported using a query saved in "
+                "the project config, selected by its title."
+            ),
+        )
+        command_parser_export.add_argument(
             "--view",
             type=str,
             help="Choose which view will be exported.",

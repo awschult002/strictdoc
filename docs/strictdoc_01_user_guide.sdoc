@@ -5558,6 +5558,70 @@ Example:
 
 [[/SECTION]]
 
+[[SECTION]]
+MID: 66b7f37f22444e968203796e837b5ea7
+UID: SECTION-UG-Saved-queries
+TITLE: Saved queries
+
+[TEXT]
+MID: 9fe1df501e8041eeab4189e0e3f3d73c
+STATEMENT: >>>
+Queries that a team uses often can be saved in the project config under a
+human-readable title with the ``queries`` option. Saved queries are stored
+with the project, so everyone working on it can reuse them.
+
+.. code:: python
+
+    from strictdoc.api import ProjectConfig, SavedQuery
+
+
+    def create_config() -> ProjectConfig:
+        config = ProjectConfig(
+            project_features=[
+                "SEARCH"
+            ],
+            queries=[
+                SavedQuery(
+                    title="System requirements",
+                    value='(node.is_requirement and "System" in node["TITLE"])',
+                ),
+                SavedQuery(
+                    title="All sections",
+                    value="node.is_section",
+                ),
+            ],
+        )
+        return config
+
+Each saved query has a ``title`` and a ``value``. The value uses the Query
+Engine syntax. StrictDoc checks the saved queries when it loads the config:
+titles must not be empty, titles must be unique, and each value must be a
+valid query.
+
+The ``queries`` command prints the saved queries of a project:
+
+.. code:: text
+
+    $ strictdoc queries .
+    System requirements
+        (node.is_requirement and "System" in node["TITLE"])
+    All sections
+        node.is_section
+
+The ``export`` command can filter content with a saved query, selected by its
+title. ``--query`` works like ``--filter-nodes`` and cannot be combined with
+it:
+
+.. code:: text
+
+    strictdoc export . --query "System requirements"
+
+On the Search screen, the saved queries are listed in a drop-down menu next to
+the search field. Selecting a query runs it.
+<<<
+
+[[/SECTION]]
+
 [[/SECTION]]
 
 [[SECTION]]

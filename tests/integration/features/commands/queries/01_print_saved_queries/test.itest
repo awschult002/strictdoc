@@ -1,0 +1,8 @@
+RUN: %expect_exit 0 %strictdoc queries %S | filecheck %s --dump-input=fail
+CHECK: System requirements
+CHECK-NEXT: {{^}}    (node.is_requirement and "System" in node["TITLE"])
+CHECK-NEXT: All sections
+CHECK-NEXT: {{^}}    node.is_section
+
+RUN: %expect_exit 0 %strictdoc queries --config %S/strictdoc_config.py | filecheck %s --check-prefix=CHECK-CONFIG --dump-input=fail
+CHECK-CONFIG: System requirements

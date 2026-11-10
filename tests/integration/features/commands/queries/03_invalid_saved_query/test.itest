@@ -1,0 +1,2 @@
+RUN: %expect_exit 1 %strictdoc queries %S | filecheck %s --dump-input=fail
+CHECK: error: config: queries: query 'Broken' could not be parsed:

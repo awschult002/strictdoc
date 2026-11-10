@@ -14,6 +14,7 @@ from strictdoc.core.project_config import (
     ProjectConfig,
     ProjectConfigLoader,
     ProjectFeature,
+    SavedQuery,
     SourceNodesEntry,
 )
 from strictdoc.core.traceability_index import TraceabilityIndex
@@ -59,6 +60,7 @@ __all__ = [
     "SDocDocumentIterator",
     "SDocNode",
     "SourceFileTraceabilityInfo",
+    "SavedQuery",
     "SourceNodesEntry",
     "StrictDocPlugin",
     "TraceabilityIndex",
