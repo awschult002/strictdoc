@@ -43,6 +43,33 @@
   </form>
 {%- endif %}
 
+{%- if view_object.is_save_query_available() %}
+  <form
+    action="/actions/search/save_query"
+    method="POST"
+    data-turbo="false"
+    data-testid="save-query-form"
+  >
+    <input type="hidden" name="q" value="{{ view_object.search_value }}" />
+    <input
+      type="text"
+      name="title"
+      placeholder="Title for this query"
+      aria-label="Title for this query"
+      required
+      data-testid="save-query-title"
+    />
+    <button
+      class="action_button"
+      type="submit"
+      data-testid="save-query-submit"
+    >Save query</button>
+  </form>
+{%- endif %}
+{%- if view_object.save_query_error is not none %}
+  <div class="sdoc-form-error" data-testid="save-query-error">{{ view_object.save_query_error }}</div>
+{%- endif %}
+
 {%- if view_object.search_value|length > 0 -%}
   {%- if view_object.error is none -%}
     {%- if view_object.search_results|length == 0 -%}

@@ -41,6 +41,8 @@ class SearchScreenViewObject:
         search_results: List[SDocExtendedElementIF],
         search_value: str,
         error: Optional[str],
+        can_save_query: bool = False,
+        save_query_error: Optional[str] = None,
     ) -> None:
         self.traceability_index: TraceabilityIndex = traceability_index
         self.project_config: ProjectConfig = project_config
@@ -49,6 +51,10 @@ class SearchScreenViewObject:
         self.search_value: str = search_value
         self.error: Optional[str] = error
         self.saved_queries: List[SavedQuery] = project_config.queries
+        # The current search is a valid query language expression, so it can
+        # be saved to the project config.
+        self.can_save_query: bool = can_save_query
+        self.save_query_error: Optional[str] = save_query_error
 
         link_renderer = LinkRenderer(
             root_path="", static_path=project_config.dir_for_sdoc_assets
@@ -82,6 +88,16 @@ class SearchScreenViewObject:
             if saved_query_.value.strip() == search_value:
                 return saved_query_
         return None
+
+    def is_save_query_available(self) -> bool:
+        return (
+            self.project_config.is_running_on_server
+            and self.project_config.config_py_path is not None
+            and self.can_save_query
+            and self.error is None
+            and len(self.search_value.strip()) > 0
+            and self.get_current_saved_query() is None
+        )
 
     def get_document_level(self) -> int:
         return 0

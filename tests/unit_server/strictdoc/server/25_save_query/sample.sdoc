@@ -1,0 +1,12 @@
+[DOCUMENT]
+TITLE: Demo
+
+[REQUIREMENT]
+UID: REQ-1
+TITLE: System safety shutdown
+STATEMENT: The system shall shut down safely.
+
+[REQUIREMENT]
+UID: REQ-2
+TITLE: Logging
+STATEMENT: The system shall log events.
