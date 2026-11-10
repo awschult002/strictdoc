@@ -9,7 +9,7 @@ from collections import defaultdict
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Union
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import (
     APIRouter,
@@ -79,6 +79,10 @@ from strictdoc.core.image_formats import (
 from strictdoc.core.project_config import ProjectConfig
 from strictdoc.core.query_engine.query_object import Query, QueryObject
 from strictdoc.core.query_engine.query_reader import QueryReader
+from strictdoc.core.saved_query_writer import (
+    SavedQueryWriteError,
+    save_query_to_project_config,
+)
 from strictdoc.core.traceability_index_builder import TraceabilityIndexBuilder
 from strictdoc.core.transforms.constants import NodeCreationOrder
 from strictdoc.core.transforms.delete_requirement import (
@@ -4797,6 +4801,41 @@ def create_main_router(
 
     @read_router.get("/search", response_class=Response)
     def get_search(q: Optional[str] = None) -> Response:
+        return render_search_screen(q)
+
+    @write_router.post("/actions/search/save_query", response_class=Response)
+    def save_search_query(
+        request_form_data: FormData = Depends(parse_form_data),
+    ) -> Response:
+        if not project_config.is_activated_search():
+            return Response(
+                content="The Search feature is not activated in the project config.",
+                status_code=HTTP_STATUS_PRECONDITION_FAILED,
+            )
+        request_dict: Dict[str, str] = dict(request_form_data)
+        query_value = request_dict.get("q", "").strip()
+        query_title = request_dict.get("title", "").strip()
+        try:
+            save_query_to_project_config(
+                project_config, title=query_title, value=query_value
+            )
+        except SavedQueryWriteError as exception_:
+            return render_search_screen(
+                query_value,
+                save_query_error=str(exception_),
+                status_code=HTTP_STATUS_BAD_REQUEST,
+            )
+        return RedirectResponse(
+            url="/search?" + urlencode({"q": query_value}),
+            status_code=303,
+        )
+
+    def render_search_screen(
+        q: Optional[str],
+        *,
+        save_query_error: Optional[str] = None,
+        status_code: int = 200,
+    ) -> Response:
         if not project_config.is_activated_search():
             return Response(
                 content="The Search feature is not activated in the project config.",
@@ -4892,12 +4931,14 @@ def create_main_router(
             search_results=search_results,
             search_value=q if q is not None else "",
             error=error,
+            can_save_query=node_query is not None,
+            save_query_error=save_query_error,
         )
         output = view_object.render_screen(html_templates.jinja_environment())
 
         return Response(
             content=output,
-            status_code=200,
+            status_code=status_code,
         )
 
     @read_router.get("/autocomplete/uid", response_class=Response)

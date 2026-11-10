@@ -88,6 +88,10 @@ the new ``queries`` option and the ``SavedQuery`` class. The Search screen
 lists the saved queries in a drop-down menu, the new ``strictdoc queries``
 command prints them, and ``strictdoc export --query "<title>"`` filters the
 export with one of them. See [LINK: SECTION-UG-Saved-queries].
+
+5\) The Search screen has a "Save query" button. It saves the current query
+with a title to the ``queries`` list in ``strictdoc_config.py`` and keeps the
+rest of the file as it is.
 <<<
 
 [[/SECTION]]
