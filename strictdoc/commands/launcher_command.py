@@ -1,7 +1,7 @@
 """
 Launcher command for the Tk-based StrictDoc UI.
 
-@relation(SDOC-SRS-208, SDOC-LLR-220, scope=file)
+@relation(SDOC-SRS-214, SDOC-LLR-228, scope=file)
 """
 
 import argparse

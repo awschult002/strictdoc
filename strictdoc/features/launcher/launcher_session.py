@@ -4,7 +4,7 @@ Launcher logic that does not depend on Tk.
 This module keeps the list of recent projects, recognizes and creates
 projects, and manages the StrictDoc server process that the launcher starts.
 
-@relation(SDOC-LLR-220, SDOC-LLR-221, scope=file)
+@relation(SDOC-LLR-228, SDOC-LLR-229, scope=file)
 """
 
 import os

@@ -12,7 +12,7 @@ runs the command-line interface of StrictDoc with the internal command
 FROZEN_STRICTDOC_COMMAND, so that the launcher does not depend on the
 location of the "strictdoc" executable.
 
-@relation(SDOC-LLR-222, scope=file)
+@relation(SDOC-LLR-230, scope=file)
 """
 
 import sys

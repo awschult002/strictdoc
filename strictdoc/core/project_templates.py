@@ -4,7 +4,7 @@ Starter templates for new StrictDoc projects.
 The "new" command and the desktop launcher create projects from these
 templates.
 
-@relation(SDOC-LLR-208, SDOC-LLR-219, scope=file)
+@relation(SDOC-LLR-208, SDOC-LLR-227, scope=file)
 """
 
 import json

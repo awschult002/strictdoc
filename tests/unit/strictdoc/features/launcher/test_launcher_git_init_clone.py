@@ -7,7 +7,7 @@ The tests run against the API that git_action.py is expected to provide.
 ASSUMED_API lists the names in one place. Until git_action.py has all of
 them, the tests that use the API are skipped.
 
-@relation(SDOC-LLR-220, scope=file)
+@relation(SDOC-LLR-228, scope=file)
 """
 
 import http.server

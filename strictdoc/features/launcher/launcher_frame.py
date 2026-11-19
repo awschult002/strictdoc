@@ -1,7 +1,7 @@
 """
 Tk-based desktop launcher.
 
-@relation(SDOC-SRS-208, SDOC-LLR-220, SDOC-LLR-221, scope=file)
+@relation(SDOC-SRS-214, SDOC-LLR-228, SDOC-LLR-229, scope=file)
 """
 
 import gc

@@ -1030,7 +1030,7 @@ TITLE: "launcher" command
 
 [REQUIREMENT]
 MID: 3f2520152e4a48dd9310e4444b51bb75
-UID: SDOC-LLR-219
+UID: SDOC-LLR-227
 STATUS: Active
 TITLE: Starter project templates
 STATEMENT: >>>
@@ -1049,11 +1049,11 @@ shall not create the project and shall report all existing files.
 <<<
 RELATIONS:
 - TYPE: Parent
-  VALUE: SDOC-SRS-208
+  VALUE: SDOC-SRS-214
 
 [REQUIREMENT]
 MID: 12efd73b2b5e4a2496bb96aedb947fcf
-UID: SDOC-LLR-220
+UID: SDOC-LLR-228
 STATUS: Active
 TITLE: Launcher start dialog
 STATEMENT: >>>
@@ -1064,7 +1064,7 @@ following choices:
 - Open an existing project folder with the folder selection dialog of the
   operating system.
 - Create a new project. The user selects a starter template from
-  [LINK: SDOC-LLR-219], a parent folder, and a project name.
+  [LINK: SDOC-LLR-227], a parent folder, and a project name.
 - Open one of the five most recently used projects.
 
 When the user opens or creates a project, the launcher shall start the web
@@ -1080,11 +1080,11 @@ browser.
 <<<
 RELATIONS:
 - TYPE: Parent
-  VALUE: SDOC-SRS-208
+  VALUE: SDOC-SRS-214
 
 [REQUIREMENT]
 MID: f41e27c71e8d4a468c9102161625e126
-UID: SDOC-LLR-221
+UID: SDOC-LLR-229
 STATUS: Active
 TITLE: Launcher server life cycle
 STATEMENT: >>>
@@ -1112,11 +1112,11 @@ keeps the project files open.
 <<<
 RELATIONS:
 - TYPE: Parent
-  VALUE: SDOC-SRS-208
+  VALUE: SDOC-SRS-214
 
 [REQUIREMENT]
 MID: 282daec0141b4dc0ac57f700800264b0
-UID: SDOC-LLR-222
+UID: SDOC-LLR-230
 STATUS: Active
 TITLE: Launcher executable in the PyInstaller bundle
 STATEMENT: >>>
@@ -1137,7 +1137,7 @@ so the macOS app can contain only the launcher.
 <<<
 RELATIONS:
 - TYPE: Parent
-  VALUE: SDOC-SRS-208
+  VALUE: SDOC-SRS-214
 
 [[/SECTION]]
 
