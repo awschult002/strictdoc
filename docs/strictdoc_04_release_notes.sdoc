@@ -97,6 +97,137 @@ rest of the file as it is.
 [[/SECTION]]
 
 [[SECTION]]
+MID: 780712d4d6a04ee68ef8c49b11ceb85d
+TITLE: 0.31.0 (2026-11-18)
+
+[TEXT]
+MID: 95aef4d99b47420082ed3e6c589a5cfc
+STATEMENT: >>>
+This release contains the following enhancements:
+
+1\) The Web UI has a table editor for multiline fields with RST or Markdown
+markup. The table editor:
+
+- inserts and edits RST grid tables and Markdown pipe tables
+- writes the table into the field as plain markup text
+- is available on the Document screen and on the TABLE screen
+- inserts a new table from the insert menu. To open the menu, type ``/`` anywhere
+  in the field, or click the ``+`` button on an empty line.
+- aligns a misaligned table with the **Format table** button. After a change,
+  an RST table is aligned automatically when the caret leaves it.
+- recognizes Markdown tables the same way as the page renders them, including
+  rows with fewer or more cells than the header row. The editor keeps extra
+  cells, and the field highlights a table with extra cells in red.
+
+2\) The Web UI has a link widget for multiline fields with RST or Markdown
+markup. Type ``[LINK:``, or select **Link** in the insert menu, to select a link
+target from a list. The link widget also works in the cells of the table
+editor. See
+[LINK: SDOC_UG_LINKS_AND_ANCHORS].
+
+3\) The Web UI has an anchor widget for multiline fields with RST or Markdown
+markup. The widget inserts an ANCHOR tag and checks that the UID is free
+before the node is saved. See [LINK: SDOC_UG_LINKS_AND_ANCHORS].
+
+4\) Fixed: in Markdown fields, an anchor with incoming links showed its list of
+incoming links as HTML code. The anchor now renders as in RST fields.
+
+5\) Fixed: the ReqIF export now accepts grammars in which two node types
+have a ``SingleChoice`` or ``MultipleChoice`` field with the same title and
+different options. Before, the export failed with an assertion error.
+
+6\) Fixed: the ReqIF export with ``--reqif-multiline-is-xhtml`` now escapes
+markup characters in multiline fields. Before, a ``<`` or ``&`` in a
+multiline field made the ReqIF file not well-formed XML. As a result,
+``reqif validate`` and the ReqIF import of StrictDoc rejected the file.
+
+7\) Fixed: the Web UI saved a field of a Markdown document with two or more
+consecutive empty lines, and the server then failed to read the document. The
+UI now collapses each run of empty lines into one, outside code blocks and
+blockquotes.
+
+8\) The static HTML export compresses the chunks of large documents. Each
+chunk file stores the chunk HTML gzip-compressed and base64-encoded. The
+browser decompresses the chunks with ``DecompressionStream``, also when the
+HTML page opens from ``file://``. For the ECSS documents from #3238, the chunk
+files shrink from 14.84 MB to 0.34 MB. To disable the compression, set the
+``lazy_document_loading_compress_chunks`` option to ``False``. See
+[LINK: SECTION-UG-Compressed-document-chunks].
+
+9\) The Document screen no longer offers or accepts Clone for sections and
+other composite nodes. Users can still clone regular document nodes.
+
+10\) Ada support was added to the tracing to source files feature in StrictDoc.
+The parser reads ``.ads``, ``.adb`` and ``.ada`` files and recognizes
+subprogram declarations and bodies, so the @relation marker can be used on
+subprograms. A subprogram body is linked to the requirements of its
+declaration, as for C function declarations and definitions. Thanks to
+@briot for the tree-sitter-ada grammar and to @haxtibal.
+
+11\) StrictDoc now parses Modelica source files (``.mo``). Each class and each
+component declaration is a language item with its fully qualified Modelica
+name. A ``@relation`` marker in the description string of a class or
+component links that class or component. The new ``component`` scope marks a
+component. ``CLASS`` and ``FUNCTION`` forward relations link to classes and
+components. A ``File`` relation with ``ELEMENT: component`` links to a
+component and shows the link as a component. The parser is written in Python
+and adds no dependency.
+
+12\) Fixed: the source file view now shows a range that starts and ends on the
+same line, for example a forward relation to a function on one line. Before,
+the view did not show the range, and a click on the node in the left panel
+caused a JavaScript error.
+
+13\) Fixed: the Tree Map screen now counts a link to a Go test file as a test
+link. A Go test file has a name that ends with ``_test.go``. Before, only a
+link to a file with ``tests/`` in its path counted as a test link.
+
+14\) Fixed: the image upload placeholder was part of the field text. If the
+user typed in the field during an upload and saved the node before the upload
+ended, the node kept the line ``.. image:: Uploading <name>...``. The
+placeholder is now a label outside the field text. If the user deletes the
+label, the image reference goes where the label was. An image dropped or
+pasted over a selected text removes that text from the saved value at once,
+not when the upload ends.
+
+15\) Fixed: an uploaded image reference that the Web UI inserted right after a
+line of text did not render as an image in RST, because RST read it as part of
+the paragraph. The Web UI now puts an empty line between the reference and the
+text before and after it. Where an empty line is already there, the Web UI adds
+none.
+
+16\) Fixed: saving a document removed the quotes from a quoted link title that
+does not need them, for example ``"Title"``. The quotes now stay, so the link
+text keeps its length, and a grid table with the link stays aligned.
+
+17\) Fixed: an RST grid table with an inline link in a cell now renders. Before,
+StrictDoc replaced the link with longer markup before docutils parsed the
+table. The cell borders moved, and the export failed with "Malformed table".
+This happened also with links that the link widget inserts in the cells of the
+table editor. The RST export (``--formats=rst``) had the same problem with the
+``:ref:`` roles that replace the links. The RST export now aligns such tables
+again.
+
+18\) Text fields of the Web UI have their own undo history. Ctrl+Z (Cmd+Z on
+macOS) undoes one typed or deleted character at a time, and Ctrl+Shift+Z redoes
+it. A paste, a write of a field widget, an uploaded image reference, the
+automatic alignment of an RST table, and the Restore UID button are one undo
+step each. Before, Ctrl+Z did not undo these changes and could stop working
+after them. Each field and each cell of the table editor has its own history,
+so Ctrl+Z changes only the focused field. Fields with autocompletion do not
+have this undo history: they keep the undo of the browser.
+
+19\) The ``strictdoc format`` command aligns the misaligned RST grid tables and
+Markdown pipe tables. Each column becomes as wide as its longest text line. As
+in docutils, a wide East Asian character, for example, a CJK character or an
+emoji, takes the width of two characters. Table alignment does not depend on
+the ``document_line_width`` option. Tables in RST literal blocks and Markdown
+fenced code blocks stay as they are.
+<<<
+
+[[/SECTION]]
+
+[[SECTION]]
 MID: b8b2939ac85c4300b5f8e96675f3d196
 TITLE: 0.30.4 (2026-10-22)
 

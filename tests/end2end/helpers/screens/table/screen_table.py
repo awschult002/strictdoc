@@ -4,6 +4,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.wait import WebDriverWait
 from seleniumbase import BaseCase
 
+from tests.end2end.helpers.components.autocomplete import autocomplete_list
 from tests.end2end.helpers.screens.screen import Screen
 
 _SORT_RESET_BTN = '[data-testid="table-toolbar-sort-reset"]'
@@ -709,18 +710,26 @@ class Screen_Table(Screen):  # pylint: disable=invalid-name
     def wait_for_cell_save_applied(
         self, node_mid: str, field_name: str, timeout: float = 10
     ) -> None:
-        # Polls until the save's Turbo Stream response has been applied to the
-        # cell DOM. data-mode is cleared synchronously before renderTurboStream
-        # fires, so wait_for_cell_not_editing resolves too early. This method
-        # instead checks the absence of sdoc-contenteditable and
-        # sdoc-autocompletable inside div#cell-{mid}-{field}: both are injected
-        # by the editing form and are gone once the Turbo Stream replaces the
-        # cell content with the display view. Use this after any save action
-        # (outside-click or Cmd+Enter) that triggers a server round-trip.
+        # Wait until the server response replaces the inline editor with the
+        # saved cell content. The cell exits editing mode before the response
+        # arrives. As a result, wait_for_cell_not_editing() does not confirm
+        # that the save has finished.
+        #
+        # The helper checks the form because the form remains until Turbo Stream
+        # applies the response. This check also covers an empty RELATIONS editor.
+        # Removing the last relation removes its sdoc-autocompletable element
+        # before the save finishes, but the empty form remains.
+        #
+        # Autocomplete cells do not have a form. The helper also checks the
+        # custom editing elements to cover these cells.
         WebDriverWait(self.test_case.driver, timeout).until(
             lambda _: self.test_case.execute_script(
-                f"const c = document.getElementById('cell-{node_mid}-{field_name}');"
-                f"return c ? !c.querySelector('sdoc-contenteditable, sdoc-autocompletable') : true;"
+                f"const cell = document.getElementById("
+                f"'cell-{node_mid}-{field_name}'"
+                ");"
+                "return cell !== null && !cell.querySelector("
+                "'form, sdoc-contenteditable, sdoc-autocompletable'"
+                ");"
             )
         )
 
@@ -752,12 +761,7 @@ class Screen_Table(Screen):  # pylint: disable=invalid-name
         field_xpath = f"(//*[@data-testid='form-field-{field_name}'])"
         self.test_case.wait_for_element(field_xpath, by=By.XPATH, timeout=10)
         element = self.test_case.find_element(field_xpath, by=By.XPATH)
-        hidden_input = element.find_element(
-            By.XPATH, "following-sibling::input[@type='hidden']"
-        )
-        results_ul = hidden_input.find_element(
-            By.XPATH, "following-sibling::ul[1]"
-        )
+        results_ul = autocomplete_list(element)
         # Don't click element to focus it: a real click event also fires the
         # sdoc-autocompletable "click" listener, which starts its own
         # show-all-options fetch racing the debounced fetch for field_value
@@ -771,9 +775,8 @@ class Screen_Table(Screen):  # pylint: disable=invalid-name
             "become visible",
         )
         len_before = len(element.text.lower().strip())
-        ActionChains(self.test_case.driver).send_keys(Keys.ARROW_DOWN).pause(
-            0.1
-        ).send_keys(Keys.RETURN).perform()
+        # The first match is the active option, so Enter selects it.
+        ActionChains(self.test_case.driver).send_keys(Keys.RETURN).perform()
         WebDriverWait(self.test_case.driver, 6).until(
             lambda _: len(element.text.lower().strip()) > len_before,
             message=f"Field {field_name!r} text did not update after "
@@ -786,12 +789,7 @@ class Screen_Table(Screen):  # pylint: disable=invalid-name
         # Cell is already open; find the injected sdoc-autocompletable by testid.
         field_xpath = f"(//*[@data-testid='form-field-{field_name}'])"
         element = self.test_case.find_element(field_xpath, by=By.XPATH)
-        hidden_input = element.find_element(
-            By.XPATH, "following-sibling::input[@type='hidden']"
-        )
-        results_ul = hidden_input.find_element(
-            By.XPATH, "following-sibling::ul[1]"
-        )
+        results_ul = autocomplete_list(element)
         element.send_keys(f",{field_value}")
         WebDriverWait(self.test_case.driver, 6).until(
             lambda _: results_ul.is_displayed(),
@@ -799,9 +797,8 @@ class Screen_Table(Screen):  # pylint: disable=invalid-name
             "become visible",
         )
         len_before = len(element.text.lower().strip())
-        ActionChains(self.test_case.driver).send_keys(Keys.ARROW_DOWN).pause(
-            0.1
-        ).send_keys(Keys.RETURN).perform()
+        # The first match is the active option, so Enter selects it.
+        ActionChains(self.test_case.driver).send_keys(Keys.RETURN).perform()
         WebDriverWait(self.test_case.driver, 6).until(
             lambda _: len(element.text.lower().strip()) > len_before,
             message=f"Field {field_name!r} text did not update after "

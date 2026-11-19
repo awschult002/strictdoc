@@ -875,6 +875,46 @@ RELATIONS:
   VALUE: SDOC-SSS-81
 
 [REQUIREMENT]
+MID: 85960cfc3d83412185e5ce5ebd7c8976
+UID: SDOC-SRS-208
+STATUS: Active
+TITLE: Field widgets
+STATEMENT: >>>
+StrictDoc's web interface shall provide widgets that insert and edit markup
+elements, such as tables and links, in multiline text fields.
+<<<
+RATIONALE: >>>
+A widget writes correct markup for the user. As a result, the user does not
+need to remember the markup syntax or type every element by hand.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SSS-80
+- TYPE: File
+  VALUE: strictdoc/export/html/_static/field_widgets.js
+
+[REQUIREMENT]
+MID: 93321c779b8a4e94a13ee351115c325b
+UID: SDOC-SRS-211
+STATUS: Active
+TITLE: Undo and redo in text fields
+STATEMENT: >>>
+When the user presses Ctrl+Z or Ctrl+Shift+Z (Cmd+Z or Cmd+Shift+Z on macOS)
+in a text field of the web interface that has no autocompletion, StrictDoc
+shall undo or redo one step of that field. A step is one typed or deleted character, or one change that
+StrictDoc writes into the field, such as a paste, a widget write, or the
+automatic alignment of a table.
+<<<
+RATIONALE: >>>
+The user expects to undo typing one character at a time, as in a text editor,
+and to undo a paste or a widget change in the same way as typing. Each field
+has its own steps, so an undo does not change another field.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SSS-80
+
+[REQUIREMENT]
 MID: 8811f0ef33de4365bc66a602a8c184f6
 UID: SDOC-SRS-48
 STATUS: Active
@@ -1161,6 +1201,20 @@ RELATIONS:
   VALUE: SDOC-SSS-80
 - TYPE: File
   VALUE: strictdoc/export/html/_static/copy_to_clipboard.js
+
+[REQUIREMENT]
+MID: fa7fd8fd3a694d8e93953fd60e19fdde
+UID: SDOC-SRS-61
+STATUS: Active
+TITLE: Tables HTML editor
+STATEMENT: >>>
+StrictDoc shall provide a solution for editing tables in its web interface.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SSS-80
+- TYPE: File
+  VALUE: strictdoc/export/html/_static/table_editor.js
 
 [[/SECTION]]
 
@@ -1499,7 +1553,7 @@ STATEMENT: >>>
 StrictDoc shall support parsing the most commonly used formats and programming
 languages to the Abstract Syntax Tree (AST) level.
 
-The format examples: C, C++, Python, Rust, Ada, Robot, Gherkin, etc.
+The format examples: C, C++, Python, Rust, Ada, Modelica, Robot, Gherkin, etc.
 <<<
 RATIONALE: >>>
 StrictDoc must be capable of traversing the AST of common formats and
@@ -1552,6 +1606,51 @@ RATIONALE: >>>
 Rust language has to be handled with a dedicated parser because of this
 language's specifics.
 <<<
+
+[REQUIREMENT]
+MID: d05facdceeff41a6957c395768e4929b
+UID: SDOC-SRS-209
+STATUS: Active
+TITLE: Language-aware parsing of Ada code
+STATEMENT: >>>
+StrictDoc shall support parsing the Ada source files (.ads, .adb, .ada) which
+includes:
+
+- Recognizing subprogram declarations and subprogram bodies.
+- Recognizing @relation markers in the "--" comments: scope=function markers
+  above subprograms, scope=file markers, range markers and line markers.
+- Linking a subprogram body to the requirements of its declaration, for
+  example in a .ads/.adb pair, as for C/C++ declarations and definitions.
+- Matching subprogram names case-insensitively.
+- Not creating a link if a name matches more than one subprogram, for example
+  overloaded subprograms.
+<<<
+RATIONALE: >>>
+Ada language has to be handled with a dedicated parser because of this
+language's specifics.
+<<<
+
+[REQUIREMENT]
+MID: 15b2e585a80c43639c696130988f6343
+UID: SDOC-SRS-210
+STATUS: Active
+TITLE: Language-aware parsing of Modelica code
+STATEMENT: >>>
+StrictDoc shall support parsing the Modelica source files which includes:
+
+- Recognizing Modelica classes, including nested classes and short class
+  definitions.
+- Recognizing component declarations.
+<<<
+RATIONALE: >>>
+In a Modelica model of a physical system, a class or a component implements
+or checks a requirement. Line ranges are a fragile link in Modelica code
+because Modelica tools rewrite a file when a user edits the model in a
+diagram.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SSS-72
 
 [REQUIREMENT]
 MID: 9183080f1358485f9bacdcda0635109
@@ -1960,6 +2059,64 @@ RELATIONS:
   VALUE: SDOC-SSS-6
 
 [[/SECTION]]
+
+[[/SECTION]]
+
+[[SECTION]]
+MID: cd7ddbe6d0c94cd49a4c01f744ff9b25
+UID: SECTION-SRS-Command-Format
+TITLE: Command: Format
+
+[REQUIREMENT]
+MID: 1a2e33e07e384e10bc23943391616d2d
+UID: SDOC-SRS-212
+STATUS: Active
+TITLE: Format documents
+STATEMENT: >>>
+StrictDoc shall provide a command that formats the SDoc and Markdown documents
+of a project tree and writes them back to their files.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SSS-32
+
+[REQUIREMENT]
+MID: 81997a035bf8400badce6e1e13299f29
+UID: SDOC-SRS-213
+STATUS: Active
+TITLE: Format tables
+STATEMENT: >>>
+When formatting documents, StrictDoc shall align the misaligned RST grid tables
+and Markdown pipe tables.
+
+StrictDoc shall measure the width of text in RST grid tables and Markdown pipe
+tables in the same way as docutils measures the width of text in RST grid
+tables.
+
+In a Markdown table, StrictDoc shall use the data in the rows as the source of
+truth, not the number of columns in the header row. A table shall have as many
+columns as its widest row.
+
+StrictDoc shall not change the following tables:
+
+- Tables that StrictDoc cannot parse completely, for example, RST tables with
+  spans.
+- Tables in RST literal blocks and Markdown fenced code blocks.
+<<<
+RATIONALE: >>>
+Tables are difficult to edit by hand in a text editor. Formatting aligns the
+tables after the user edits them.
+
+A table in an RST literal block or a Markdown fenced code block is
+preformatted text, not a table. Docutils and markdown-it do not parse such a
+table. The table is an example of markup, and its author can make it misaligned
+on purpose. As a result, formatting does not change such a table.
+<<<
+RELATIONS:
+- TYPE: Parent
+  VALUE: SDOC-SSS-32
+- TYPE: Parent
+  VALUE: SDOC-SSS-63
 
 [[/SECTION]]
 

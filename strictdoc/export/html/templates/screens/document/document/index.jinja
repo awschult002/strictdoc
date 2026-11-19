@@ -6,6 +6,10 @@
   <link rel="stylesheet" href="{{ view_object.render_static_url('relation_preview.css') }}"/>
   {%- if view_object.is_running_on_server %}
   <link rel="stylesheet" href="{{ view_object.render_static_url('move_node_tree.css') }}"/>
+  <link rel="stylesheet" href="{{ view_object.render_static_url('field_widgets.css') }}"/>
+  <link rel="stylesheet" href="{{ view_object.render_static_url('table_editor.css') }}"/>
+  <link rel="stylesheet" href="{{ view_object.render_static_url('link_widget.css') }}"/>
+  <link rel="stylesheet" href="{{ view_object.render_static_url('anchor_widget.css') }}"/>
   {%- endif %}
 {% endblock head_css %}
 
@@ -50,12 +54,17 @@
     import hotwiredTurbo from "{{ view_object.render_static_url('turbo.min.js') }}";
   </script>
 
+  <script src="{{ view_object.render_static_url('autocomplete.js') }}"></script>
   <script src="{{ view_object.render_static_url('autocompletable_field.js') }}"></script>
 
   {% if not view_object.has_included_document() %}
   <script src="{{ view_object.render_static_url('draggable_list.js') }}"></script>
   {% endif %}
   <script src="{{ view_object.render_static_url('editable_field.js') }}"></script>
+  <script src="{{ view_object.render_static_url('field_widgets.js') }}"></script>
+  <script src="{{ view_object.render_static_url('table_editor.js') }}"></script>
+  <script src="{{ view_object.render_static_url('link_widget.js') }}"></script>
+  <script src="{{ view_object.render_static_url('anchor_widget.js') }}"></script>
   <script src="{{ view_object.render_static_url('deletable_field.js') }}"></script>
   <script src="{{ view_object.render_static_url('movable_field.js') }}"></script>
   <script src="{{ view_object.render_static_url('restorable_field.js') }}"></script>
@@ -258,4 +267,9 @@
 
 {% block main_content %}
   {% include "screens/document/document/main.jinja" %}
+  {%- if view_object.is_running_on_server %}
+  {% include "components/field_widgets/icons.jinja" %}
+  {% include "components/table_editor/icons.jinja" %}
+  {% include "components/table_editor/double_width_ranges.jinja" %}
+  {%- endif %}
 {% endblock main_content %}
