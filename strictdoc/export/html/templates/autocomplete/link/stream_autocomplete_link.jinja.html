@@ -1,0 +1,3 @@
+{% for uid, title, kind in targets %}
+{% with item_value=uid, item_title=title, item_kind=kind %}{% include "components/autocomplete/item.jinja" %}{% endwith %}
+{%- endfor %}

@@ -1,0 +1,27 @@
+[DOCUMENT]
+TITLE: Markdown
+OPTIONS:
+  MARKUP: Markdown
+
+[REQUIREMENT]
+TITLE: Requirement title
+STATEMENT: >>>
+| Name | Pattern |
+|:-----|--------:|
+| or   | `a \| b` |
+| and  | `a & b`<br/>both |
+
+```text
+| not | a table |
+| --- | ------- |
+```
+
+| Short | rows | here |
+| --- | --- | --- |
+| one |
+lazy line
+
+| A | B |
+| --- | --- |
+| 1 | 2 | 3 |
+<<<

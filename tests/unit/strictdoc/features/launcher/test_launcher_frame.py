@@ -2,7 +2,7 @@
 Tests for the launcher window. They need Tk and a display, and they start a
 real StrictDoc server.
 
-@relation(SDOC-LLR-220, SDOC-LLR-221, scope=file)
+@relation(SDOC-LLR-228, SDOC-LLR-229, scope=file)
 """
 
 import gc

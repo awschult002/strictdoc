@@ -1,7 +1,7 @@
 """
 Tests for the launcher dialogs. They need Tk and a display.
 
-@relation(SDOC-LLR-220, scope=file)
+@relation(SDOC-LLR-228, scope=file)
 """
 
 import gc

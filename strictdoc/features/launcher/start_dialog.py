@@ -1,7 +1,7 @@
 """
 Start dialog and new project dialog of the desktop launcher.
 
-@relation(SDOC-LLR-220, scope=file)
+@relation(SDOC-LLR-228, scope=file)
 """
 
 import os

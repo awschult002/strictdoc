@@ -10,7 +10,7 @@ The executable has no console on Windows and macOS, so this module does not
 use strictdoc.cli.main for the launcher. strictdoc.cli.main replaces
 sys.stdout with file descriptor 1, which does not exist without a console.
 
-@relation(SDOC-LLR-222, scope=file)
+@relation(SDOC-LLR-230, scope=file)
 """
 
 import argparse
