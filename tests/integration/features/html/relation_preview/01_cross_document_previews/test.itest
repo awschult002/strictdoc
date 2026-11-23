@@ -9,9 +9,9 @@
 RUN: %strictdoc export %S --output-dir %T | filecheck %s --dump-input=fail
 CHECK: Export completed.
 
-RUN: %cat %T/html/01_cross_document_previews/child.html | filecheck %s --dump-input=fail --check-prefix CHECK-CHILD-HTML
+RUN: %cat %T/html/01_cross_document_previews/child.sdoc.html | filecheck %s --dump-input=fail --check-prefix CHECK-CHILD-HTML
 CHECK-CHILD-HTML: _static/relation_preview.js
-CHECK-CHILD-HTML: class="requirement__link-parent" href="../01_cross_document_previews/parent.html#REQ-PARENT-1"
+CHECK-CHILD-HTML: class="requirement__link-parent" href="../01_cross_document_previews/parent.sdoc.html#REQ-PARENT-1"
 
 RUN: %check_exists --file "%T/html/_static/relation_preview.js"
 
