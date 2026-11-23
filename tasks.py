@@ -1176,49 +1176,24 @@ def release_pyinstaller(context, output_dir="/tmp/strictdoc"):
 
     The binary is output_dir/strictdoc/strictdoc. The zip is
     output_dir/strictdoc-<version>-<os>-<machine>.zip.
+
+    scripts/strictdoc.spec also puts the windowed desktop launcher in the
+    same folder (strictdoc_launcher, or strictdoc_launcher.exe on Windows).
+    On macOS, StrictDoc.app is moved into that folder before the zip is
+    created.
     """
 
     path_to_pyi_dist = os.path.abspath(output_dir)
-    html_template_data_options = get_pyinstaller_html_template_data_options()
-    html_static_data_options = get_pyinstaller_html_static_data_options()
 
-    # The --hidden-import strictdoc.server.app flag is needed because without
-    # it, the following is produced:
-    # ERROR: Error loading ASGI app. Could not import
-    # module "strictdoc.server.app".
-    # Solution found here: https://stackoverflow.com/a/71340437/598057
-    # This behavior is not surprising because that's how the uvicorn loads the
-    # application separately from the parent process.
-    #
-    # Compatibility modules can be imported by user-provided statistics
-    # generators at runtime. PyInstaller cannot discover these imports
-    # statically because the generators live outside of StrictDoc's package.
-    #
-    # --hidden-import strictdoc.api is needed for the same reason:
-    # strictdoc.api is never imported anywhere inside StrictDoc's own
-    # package (only by dynamically-loaded, external files such as a
-    # project's own strictdoc_config.py, custom statistics generators, or
-    # custom plugins), so PyInstaller's static analysis -- which walks
-    # imports starting from strictdoc/cli/main.py -- never discovers it on
-    # its own.
+    # The hidden imports, HTML templates, static files and hooks live in
+    # scripts/strictdoc.spec, which also builds the windowed launcher.
     command = f"""
         pyinstaller
             --clean
-            --name strictdoc
             --noconfirm
-            --additional-hooks-dir developer/pyinstaller_hooks
             --distpath {path_to_pyi_dist}
-            --hidden-import strictdoc.api
-            --hidden-import strictdoc.backend.rst.strictdoc_lexer
-            --hidden-import strictdoc.core.statistics.metric
-            --hidden-import strictdoc.export.html.generators.project_statistics
-            --hidden-import strictdoc.export.html.generators.view_objects.project_statistics_view_object
-            --hidden-import strictdoc.export.html.generators.view_objects.project_tree_stats
-            --hidden-import strictdoc.server.app
-            {html_template_data_options}
-            {html_static_data_options}
-            --add-data strictdoc/backend/rst/templates:templates/rst
-            strictdoc/cli/main.py
+            --workpath build/pyinstaller
+            scripts/strictdoc.spec
     """
 
     run_invoke_with_uv(
@@ -1230,6 +1205,33 @@ def release_pyinstaller(context, output_dir="/tmp/strictdoc"):
     )
 
     run_invoke_with_uv(context, UvEnvironment.PYINSTALLER, command)
+
+    if platform.system() == "Darwin":
+        # The spec writes StrictDoc.app next to the onedir. Move it in so
+        # the zip contains the app. The leftover strictdoc-app COLLECT is
+        # only a build input of BUNDLE.
+        path_to_app = os.path.join(path_to_pyi_dist, "StrictDoc.app")
+        path_to_app_in_bundle = os.path.join(
+            path_to_pyi_dist, "strictdoc", "StrictDoc.app"
+        )
+        if os.path.isdir(path_to_app):
+            if os.path.exists(path_to_app_in_bundle):
+                shutil.rmtree(path_to_app_in_bundle)
+            shutil.move(path_to_app, path_to_app_in_bundle)
+        path_to_app_collect = os.path.join(path_to_pyi_dist, "strictdoc-app")
+        if os.path.isdir(path_to_app_collect):
+            shutil.rmtree(path_to_app_collect)
+
+    launcher_name = (
+        "strictdoc_launcher.exe" if os.name == "nt" else "strictdoc_launcher"
+    )
+    path_to_launcher = os.path.join(
+        path_to_pyi_dist, "strictdoc", launcher_name
+    )
+    if not os.path.isfile(path_to_launcher):
+        raise RuntimeError(
+            f"release-pyinstaller: missing launcher {path_to_launcher}"
+        )
 
     platform_name = f"{platform.system()}-{platform.machine()}".lower()
     zip_base_name = os.path.join(

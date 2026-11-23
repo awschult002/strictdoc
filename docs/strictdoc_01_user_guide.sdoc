@@ -473,7 +473,10 @@ Each zip file contains the binary for one platform:
 
 Unzip the file and run the ``strictdoc`` executable in the ``strictdoc`` folder
 (``strictdoc.exe`` on Windows). Keep the ``_internal`` folder next to the
-executable.
+executable. The folder also contains the windowed desktop launcher
+(``strictdoc_launcher``, or ``strictdoc_launcher.exe`` on Windows). On macOS,
+the folder also contains ``StrictDoc.app``. See
+[LINK: SECTION-UG-Desktop-launcher].
 
 .. code:: text
 
@@ -600,7 +603,9 @@ line. The launcher starts the web server for the project and opens the project
 in the default browser.
 
 The launcher needs a Python installation with Tk support (``tkinter``). If Tk
-is not available, StrictDoc does not show the ``launcher`` command.
+is not available, StrictDoc does not show the ``launcher`` command. The
+standalone PyInstaller zip already contains a windowed launcher executable,
+so that copy of the launcher does not need a Python installation.
 
 To start the launcher, run:
 

@@ -30,15 +30,15 @@ section of the Read the Docs site for more details.
 A self-contained build of StrictDoc runs without Python, pip or a venv.
 Each zip on the
 [Releases](https://github.com/awschult002/strictdoc/releases) page holds one
-platform's bundle: `strictdoc-<version>-windows-x86_64.zip`,
-`strictdoc-<version>-linux-x86_64.zip` or `strictdoc-<version>-macos-arm64.zip`.
+platform's bundle: `strictdoc-<version>-windows-amd64.zip`,
+`strictdoc-<version>-linux-x86_64.zip` or `strictdoc-<version>-darwin-arm64.zip`.
 
 Unzip it anywhere and run the `strictdoc` executable at the top of the
 folder (`strictdoc.exe` on Windows). Keep the `_internal` folder next to it.
 
 ```bash
-strictdoc-0.30.1-windows-x86_64\strictdoc.exe export my_docs
-strictdoc-0.30.1-windows-x86_64\strictdoc.exe server my_docs
+strictdoc\strictdoc.exe export my_docs
+strictdoc\strictdoc.exe server my_docs
 ```
 
 To call it as plain `strictdoc`, add the folder to `PATH`.
@@ -88,25 +88,18 @@ macOS remembers this choice for this copy of the app. On older macOS
 versions, Control-click the app, select `Open` and then click `Open`.
 
 For the command-line executable, or to allow the whole folder in one step,
-run `xattr -dr com.apple.quarantine strictdoc-<version>-macos-arm64`.
+run `xattr -dr com.apple.quarantine strictdoc`.
 
-To build a bundle from a checkout (Linux, macOS, or Git Bash on Windows),
-run the build script, then the smoke tests against the result:
+To build the zip from a checkout, run:
 
 ```bash
-scripts/build_bundle.sh                # or: scripts/build_bundle.sh 1.2.3
-scripts/smoke_bundle.sh dist/strictdoc-<version>-<platform>/strictdoc
+invoke release-pyinstaller --output-dir build/pyinstaller_dist
 ```
 
-`tests/bundle/run_bundle_tests.sh <exe> smoke|full|lit|all` runs a deeper
-pytest suite against a bundle (see `tests/bundle/TEST_PLAN.md`); it needs
-`pytest playwright openpyxl pypdf` on the test machine, not in the bundle.
-
-The build script uses `uv` when it is installed (dependencies pinned by
-`uv.lock`, CPython 3.12) and falls back to `python3 -m venv` and pip. The
-`Bundle (PyInstaller)` GitHub Actions workflow runs both scripts on Linux,
-Windows and macOS and attaches the zips to a GitHub Release when a `v*` tag
-is pushed.
+The zip is `build/pyinstaller_dist/strictdoc-<version>-<os>-<machine>.zip`.
+Unzip it with `unzip` (Python's zipfile drops the executable bit). The
+release and periodic-integration GitHub Actions workflows build the zip
+this way and attach it to a GitHub Release.
 
 ## Quick start
 
