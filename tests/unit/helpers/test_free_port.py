@@ -1,6 +1,27 @@
 import socket
 
-from tests.bundle.conftest import free_port
+
+def free_port():
+    """
+    Return an unused local TCP port StrictDoc's --port will accept.
+
+    StrictDoc allows [1024, 65000]. Binding to port 0 lets the OS pick an
+    ephemeral port, and on Windows those can be above 65000, which then fails
+    argparse before the server starts.
+    """
+    for _ in range(100):
+        sock = socket.socket()
+        try:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        finally:
+            sock.close()
+        if 1024 <= port <= 65000:
+            return port
+    raise RuntimeError(
+        "could not find a free TCP port in StrictDoc's allowed range "
+        "[1024, 65000]"
+    )
 
 
 def test_free_port_stays_inside_strictdoc_cli_range():

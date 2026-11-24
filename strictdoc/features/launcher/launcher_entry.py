@@ -1,7 +1,8 @@
 """
 Entry point of the windowed launcher executable in the StrictDoc bundle.
 
-The PyInstaller spec scripts/strictdoc.spec builds this module into the
+The PyInstaller spec scripts/strictdoc.spec, used by
+`invoke release-pyinstaller`, builds this module into the
 "strictdoc_launcher" executable (and into StrictDoc.app on macOS). The
 executable runs the desktop launcher. When the launcher starts StrictDoc
 commands, the executable runs them as "strictdoc_launcher _strictdoc <args>".

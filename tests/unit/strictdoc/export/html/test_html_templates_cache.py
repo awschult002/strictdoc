@@ -1,10 +1,14 @@
 """
-The precompiled Jinja template cache (CompiledHTMLTemplates) must never serve
-a page with TemplateNotFound because its cache bucket is incomplete.
+The precompiled Jinja template cache must not leave a half-filled bucket
+if a compile is interrupted. The next run must compile the cache again.
 """
 
 import glob
 import os
+from typing import Any, List
+
+import pytest
+from jinja2 import Environment
 
 from strictdoc.core.project_config import ProjectConfig
 from strictdoc.export.html.html_templates import CompiledHTMLTemplates
@@ -19,37 +23,25 @@ def _templates(tmp_path) -> CompiledHTMLTemplates:
     return CompiledHTMLTemplates(project_config)
 
 
-def _compiled_modules(templates: CompiledHTMLTemplates):
+def _compiled_modules(templates: CompiledHTMLTemplates) -> List[str]:
     return glob.glob(
         os.path.join(templates.path_to_jinja_cache_bucket_dir, "*.py")
     )
 
 
-def test_bucket_path_is_absolute(tmp_path, monkeypatch):
-    # The server's default cache folder is relative to the current folder.
-    monkeypatch.chdir(tmp_path)
-    project_config = ProjectConfig.default_config()
-    project_config.output_dir = "./output/server"
-    project_config.dir_for_sdoc_cache = "./output/server/_cache"
-    templates = CompiledHTMLTemplates(project_config)
-    assert templates.path_to_jinja_cache_bucket_dir == os.path.join(
-        os.getcwd(),
-        "output",
-        "server",
-        "_cache",
-        "jinja",
-        os.path.basename(templates.path_to_jinja_cache_bucket_dir),
-    )
+def _temporary_compile_folders(
+    templates: CompiledHTMLTemplates,
+) -> List[str]:
+    parent = os.path.dirname(templates.path_to_jinja_cache_bucket_dir)
+    if not os.path.isdir(parent):
+        return []
+    return [name_ for name_ in os.listdir(parent) if name_.startswith(".tmp-")]
 
 
-def test_compile_writes_complete_bucket(tmp_path):
+def test_full_compile_leaves_no_temporary_folder(tmp_path):
     templates = _templates(tmp_path)
     templates.compile_jinja_templates()
     assert len(_compiled_modules(templates)) > 100
-    assert templates.is_jinja_cache_complete(
-        CompiledHTMLTemplates.get_templates_fingerprint()
-    )
-    # No temporary compile folder is left behind.
     parent = os.path.dirname(templates.path_to_jinja_cache_bucket_dir)
     assert os.listdir(parent) == [
         os.path.basename(templates.path_to_jinja_cache_bucket_dir)
@@ -57,31 +49,28 @@ def test_compile_writes_complete_bucket(tmp_path):
     templates.jinja_environment().get_template(TEMPLATE)
 
 
-def test_incomplete_bucket_is_compiled_again(tmp_path):
-    # A bucket without the completion marker, e.g. left by a run that was
-    # stopped while compiling, or by an older StrictDoc.
+def test_interrupted_compile_leaves_no_bucket(tmp_path, monkeypatch):
+    templates = _templates(tmp_path)
+
+    def compile_and_raise(
+        _self: Environment, target: str, *_args: Any, **_kwargs: Any
+    ) -> None:
+        os.makedirs(target, exist_ok=True)
+        with open(
+            os.path.join(target, "partial.py"), "w", encoding="utf-8"
+        ) as file:
+            file.write("# incomplete\n")
+        raise RuntimeError("interrupted")
+
+    monkeypatch.setattr(Environment, "compile_templates", compile_and_raise)
+    with pytest.raises(RuntimeError, match="interrupted"):
+        templates.compile_jinja_templates()
+
+    assert not os.path.isdir(templates.path_to_jinja_cache_bucket_dir)
+    assert _temporary_compile_folders(templates) == []
+
+    monkeypatch.undo()
     templates = _templates(tmp_path)
     templates.compile_jinja_templates()
-    n_modules = len(_compiled_modules(templates))
-    os.remove(
-        os.path.join(
-            templates.path_to_jinja_cache_bucket_dir,
-            CompiledHTMLTemplates.COMPLETE_MARKER,
-        )
-    )
-    for path in _compiled_modules(templates)[::2]:
-        os.remove(path)
-
-    templates = _templates(tmp_path)
-    templates.compile_jinja_templates()
-    assert len(_compiled_modules(templates)) == n_modules
-
-
-def test_missing_compiled_module_falls_back_to_source(tmp_path):
-    # The bucket is complete but loses files afterwards: templates still
-    # load, from their source files.
-    templates = _templates(tmp_path)
-    templates.compile_jinja_templates()
-    for path in _compiled_modules(templates):
-        os.remove(path)
+    assert len(_compiled_modules(templates)) > 100
     templates.jinja_environment().get_template(TEMPLATE)

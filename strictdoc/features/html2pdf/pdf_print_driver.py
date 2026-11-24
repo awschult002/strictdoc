@@ -2,25 +2,24 @@
 @relation(SDOC-SRS-51, scope=file)
 """
 
+import codecs
+import io
 import os.path
 import sys
-from subprocess import (
-    PIPE,
-    CalledProcessError,
-    CompletedProcess,
-    TimeoutExpired,
-    run,
-)
-from typing import List, Tuple
+from collections import deque
+from subprocess import PIPE, CalledProcessError, Popen, TimeoutExpired
+from typing import Deque, List, Tuple
 
 from html2pdf4doc.main import HPDExitCode
 
-from strictdoc import environment
 from strictdoc.core.project_config import ProjectConfig
 from strictdoc.features.html2pdf.pdf_postprocessor import PDFPostprocessor
 from strictdoc.helpers.frozen import get_html2pdf4doc_command
 from strictdoc.helpers.timing import measure_performance
-from strictdoc.helpers.user_cache_dir import get_user_cache_dir
+
+# The number of html2pdf4doc's last stderr lines that are kept to explain a
+# failure. A Python traceback ends with the exception message.
+STDERR_TAIL_MAX_LINES = 100
 
 
 class PDFPrintDriverException(Exception):
@@ -111,7 +110,7 @@ class PDFPrintDriver:
         # project config sets a cache folder, keep it in the per-user cache
         # instead of downloading it again for every output folder.
         path_to_html2pdf4doc_cache = os.path.join(
-            get_user_cache_dir()
+            project_config.environment.get_path_to_user_cache_dir()
             if project_config.is_default_dir_for_sdoc_cache
             else project_config.get_path_to_cache_dir(),
             "html2pdf",
@@ -156,28 +155,52 @@ class PDFPrintDriver:
             "PDFPrintDriver: printing HTML to PDF using HTML2PDF and Chrome Driver"
         ):
             try:
-                # stdout goes straight to the console. stderr is captured so
-                # that a failure is reported as one clear message instead of
-                # html2pdf4doc's traceback (shown with --debug).
-                completed_process: CompletedProcess[str] = run(
-                    cmd,
-                    stderr=PIPE,
-                    encoding="utf-8",
-                    errors="replace",
-                    check=False,
-                )
-                if completed_process.returncode != 0:
-                    if environment.is_debug_mode:
-                        sys.stderr.write(completed_process.stderr)
+                returncode, stderr_tail = PDFPrintDriver.run_html2pdf4doc(cmd)
+                if returncode != 0:
                     raise CalledProcessError(
-                        completed_process.returncode,
-                        cmd,
-                        stderr=completed_process.stderr,
+                        returncode, cmd, stderr=stderr_tail
                     )
-                sys.stderr.write(completed_process.stderr)
                 PDFPostprocessor.rewrite_cross_document_links(
                     path_to_input_root=path_to_input_root,
                     paths_to_print=paths_to_print,
                 )
             except Exception as e_:
                 raise PDFPrintDriverException(e_) from e_
+
+    @staticmethod
+    def run_html2pdf4doc(cmd: List[str]) -> Tuple[int, str]:
+        """
+        Run html2pdf4doc and return its exit code and the last lines of its
+        stderr.
+
+        stdout goes straight to the console. stderr is passed through to the
+        console as it arrives, and its last lines are kept so that a failure
+        can be reported as one clear message.
+        """
+
+        stderr_tail: Deque[str] = deque(maxlen=STDERR_TAIL_MAX_LINES)
+        incomplete_line = ""
+        # On Windows, a Python child process writes \r\n to the pipe.
+        # sys.stderr adds \r again when it writes \n, so translate \r\n to
+        # \n first. The decoder also handles a \r\n split across two reads.
+        decoder = io.IncrementalNewlineDecoder(
+            codecs.getincrementaldecoder("utf-8")(errors="replace"),
+            translate=True,
+        )
+        with Popen(cmd, stderr=PIPE) as process:
+            assert process.stderr is not None
+            while True:
+                chunk = os.read(process.stderr.fileno(), 65536)
+                text = decoder.decode(chunk, final=len(chunk) == 0)
+                if len(text) > 0:
+                    sys.stderr.write(text)
+                    sys.stderr.flush()
+                    lines = (incomplete_line + text).split("\n")
+                    incomplete_line = lines.pop()
+                    stderr_tail.extend(lines)
+                if len(chunk) == 0:
+                    break
+            returncode = process.wait()
+        if len(incomplete_line) > 0:
+            stderr_tail.append(incomplete_line)
+        return returncode, "\n".join(stderr_tail)

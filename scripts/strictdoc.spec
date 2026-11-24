@@ -1,23 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
 #
-# PyInstaller spec for a self-contained StrictDoc bundle (onedir).
+# PyInstaller spec for a self-contained StrictDoc onedir binary.
 #
-# Build it with scripts/build_bundle.sh, which creates the venv, installs the
-# pinned dependencies, and runs:
+# Built by `invoke release-pyinstaller`, which runs:
 #
-#     pyinstaller --noconfirm --clean scripts/strictdoc.spec
+#     pyinstaller --noconfirm --clean --distpath <output-dir> scripts/strictdoc.spec
 #
-# The output is dist/strictdoc/ with two executables at its top:
+# The output is <output-dir>/strictdoc/ with two executables at its top:
 #
 #   strictdoc           the command-line interface (console executable)
 #   strictdoc_launcher  the desktop launcher (windowed executable, no console
 #                       window on Windows)
 #
-# On macOS, the spec also builds dist/StrictDoc.app, which contains only the
-# launcher. The launcher runs StrictDoc commands with its own executable (see
-# strictdoc/helpers/frozen.py), so the app does not need the "strictdoc"
-# executable. The build script renames dist/strictdoc/ to include the version
-# and platform and moves StrictDoc.app into it.
+# On macOS, the spec also builds <output-dir>/StrictDoc.app, which contains
+# only the launcher. The launcher runs StrictDoc commands with its own
+# executable (see strictdoc/helpers/frozen.py), so the app does not need the
+# "strictdoc" executable. The invoke task moves StrictDoc.app into the
+# strictdoc folder before it creates the zip.
 #
 # Data layout inside the bundle follows strictdoc/core/environment.py, which
 # looks up templates and static files relative to sys._MEIPASS when frozen:

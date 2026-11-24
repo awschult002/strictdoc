@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 import shutil
 import sys
@@ -13,6 +14,7 @@ from invoke import task
 from developer.git.commit_validator import (
     validate_commits_locally_or_ci,
 )
+from strictdoc import __version__
 from strictdoc.core.environment import (
     BINARY_HTML_STATIC_DIR,
     BINARY_HTML_TEMPLATES_DIR,
@@ -319,6 +321,7 @@ def test_end2end(
     focus=None,
     exit_first=False,
     parallelize=False,
+    workers: int = 4,
     long_timeouts=False,
     headless=False,
     headed=False,
@@ -328,6 +331,8 @@ def test_end2end(
 ):
     """
     @relation(SDOC-SRS-46, scope=function)
+
+    --workers sets the number of pytest-xdist workers for --parallelize.
     """
 
     environment = {}
@@ -357,12 +362,16 @@ def test_end2end(
 
     parallelize_argument = ""
     if parallelize:
-        print(  # noqa: T201
-            "warning: "
-            "Running parallelized end-2-end tests is supported "
-            "but is not stable."
+        # --dist loadgroup runs all tests of one xdist group on one worker.
+        # tests/end2end/conftest.py assigns the groups.
+        # --verbose prints one line per test with the worker name, for
+        # example "[gw2] PASSED tests/end2end/...". pytest-xdist does not
+        # show the output that the tests print.
+        assert workers >= 1, workers
+        parallelize_argument = (
+            f"--numprocesses={workers} --dist loadgroup --strictdoc-parallelize"
+            " --verbose"
         )
-        parallelize_argument = "--numprocesses=2 --strictdoc-parallelize"
 
     assert shard is None or re.match(r"[1-9][0-9]*/[1-9][0-9]*", shard), (
         f"--shard argument has an incorrect format: {shard}."
@@ -372,6 +381,11 @@ def test_end2end(
     focus_argument = f"-k {focus}" if focus is not None else ""
     exit_first_argument = "--exitfirst" if exit_first else ""
     headless_argument = "--headless2" if headless and not headed else "--gui"
+    # pytest-xdist does not support --capture=no: the output that a worker
+    # does not capture is lost. With the default capture, the report of a
+    # failed test includes the captured output, for example the server log
+    # that SDocTestServer prints.
+    capture_argument = "" if parallelize else "--capture=no"
     windows_network_retry_arguments = (
         '--reruns=1 --only-rerun="ERR_NO_BUFFER_SPACE"'
         if os.name == "nt"
@@ -381,7 +395,7 @@ def test_end2end(
             {coverage_command_or_none}
             pytest
             --failed-first
-            --capture=no
+            {capture_argument}
             --reuse-session
             {parallelize_argument}
             {shard_argument}
@@ -528,6 +542,47 @@ def test_unit_report(context):
     )
 
 
+def get_path_to_test_chromedriver(
+    context, environment_type: UvEnvironment
+) -> str:
+    """
+    Return the ChromeDriver for the HTML2PDF integration tests.
+
+    All HTML2PDF tests except one get this ChromeDriver with --chromedriver,
+    so that they do not download a ChromeDriver each. The GitHub Actions
+    runners provide a ChromeDriver that matches the installed Chrome in
+    $CHROMEWEBDRIVER. Elsewhere, html2pdf4doc downloads the ChromeDriver
+    once to build/chromedriver, and later runs reuse it.
+    """
+
+    path_to_chromedriver_dir = os.environ.get("CHROMEWEBDRIVER")
+    if path_to_chromedriver_dir is not None:
+        # NOTE: isfile() check does not work on GitHub Actions / Linux,
+        #       the exists() check works.
+        assert os.path.exists(path_to_chromedriver_dir), (
+            path_to_chromedriver_dir
+        )
+        return os.path.join(
+            path_to_chromedriver_dir,
+            "chromedriver.exe" if os.name == "nt" else "chromedriver",
+        )
+
+    path_to_cache_dir = os.path.abspath(os.path.join("build", "chromedriver"))
+    result = run_invoke_with_uv(
+        context,
+        environment_type,
+        f"""
+            {uv_venv_python(environment_type)} -m html2pdf4doc.main get_driver
+                --cache-dir "{path_to_cache_dir}"
+        """,
+    )
+    match = re.search(r"ChromeDriver available at path: (.+)", result.stdout)
+    assert match is not None, result.stdout
+    path_to_chromedriver = match.group(1).strip()
+    assert os.path.isfile(path_to_chromedriver), path_to_chromedriver
+    return path_to_chromedriver
+
+
 @task(clean, aliases=["ti"])
 def test_integration(
     context,
@@ -588,29 +643,22 @@ def test_integration(
         num_shards = int(match.group(2))
         partition_opts = f"--num-shards={num_shards} --run-shard={run_shard}"
 
-    # HTML2PDF tests are running Chrome Driver which does not seem to be
-    # parallelizable, or at least not in the way StrictDoc uses it.
-    # If HTML2PDF option is provided, do not parallelize and only run the
-    # HTML2PDF-specific tests.
-    # HTML2PDF tests can be safely partitioned.
+    # If the HTML2PDF option is provided, only run the HTML2PDF-specific tests.
+    # The HTML2PDF tests run in parallel like all other tests: each Chrome
+    # instance gets its own port and profile, and the tests share one
+    # ChromeDriver that no test downloads or changes.
+    parallelize_opts = "" if not no_parallelization else "--threads 1"
     chromedriver_param = ""
     if not html2pdf:
-        parallelize_opts = "" if not no_parallelization else "--threads 1"
         html2pdf_param = ""
         test_folder = f"{cwd}/tests/integration"
         test_output_dir = "build/tests_integration"
     else:
-        parallelize_opts = "--threads 1"
         html2pdf_param = "--param TEST_HTML2PDF=1"
-        chromedriver_path = os.environ.get("CHROMEWEBDRIVER")
-        if chromedriver_path is not None:
-            # NOTE: isfile() check does not work on GitHub Actions / Linux,
-            #       the exists() check works.
-            assert os.path.exists(chromedriver_path), chromedriver_path
-            chromedriver_param = f"--param CHROMEDRIVER={os.path.join(chromedriver_path, 'chromedriver')}"
-            if os.name == "nt":
-                # On Windows, its chromdriver.exe
-                chromedriver_param = chromedriver_param + ".exe"
+        path_to_chromedriver = get_path_to_test_chromedriver(
+            context, environment
+        )
+        chromedriver_param = f'--param CHROMEDRIVER="{path_to_chromedriver}"'
         test_folder = f"{cwd}/tests/integration/features/html2pdf"
         test_output_dir = "build/tests_integration_html2pdf"
 
@@ -1122,48 +1170,30 @@ def release(context, test_pypi=False, username=None, password=None):
 
 
 @task
-def release_pyinstaller(context):
-    path_to_pyi_dist = "/tmp/strictdoc"
-    html_template_data_options = get_pyinstaller_html_template_data_options()
-    html_static_data_options = get_pyinstaller_html_static_data_options()
+def release_pyinstaller(context, output_dir="/tmp/strictdoc"):
+    """
+    Build a onedir StrictDoc binary with PyInstaller and zip it.
 
-    # The --hidden-import strictdoc.server.app flag is needed because without
-    # it, the following is produced:
-    # ERROR: Error loading ASGI app. Could not import
-    # module "strictdoc.server.app".
-    # Solution found here: https://stackoverflow.com/a/71340437/598057
-    # This behavior is not surprising because that's how the uvicorn loads the
-    # application separately from the parent process.
-    #
-    # Compatibility modules can be imported by user-provided statistics
-    # generators at runtime. PyInstaller cannot discover these imports
-    # statically because the generators live outside of StrictDoc's package.
-    #
-    # --hidden-import strictdoc.api is needed for the same reason:
-    # strictdoc.api is never imported anywhere inside StrictDoc's own
-    # package (only by dynamically-loaded, external files such as a
-    # project's own strictdoc_config.py, custom statistics generators, or
-    # custom plugins), so PyInstaller's static analysis -- which walks
-    # imports starting from strictdoc/cli/main.py -- never discovers it on
-    # its own.
+    The binary is output_dir/strictdoc/strictdoc. The zip is
+    output_dir/strictdoc-<version>-<os>-<machine>.zip.
+
+    scripts/strictdoc.spec also puts the windowed desktop launcher in the
+    same folder (strictdoc_launcher, or strictdoc_launcher.exe on Windows).
+    On macOS, StrictDoc.app is moved into that folder before the zip is
+    created.
+    """
+
+    path_to_pyi_dist = os.path.abspath(output_dir)
+
+    # The hidden imports, HTML templates, static files and hooks live in
+    # scripts/strictdoc.spec, which also builds the windowed launcher.
     command = f"""
         pyinstaller
             --clean
-            --name strictdoc
             --noconfirm
-            --additional-hooks-dir developer/pyinstaller_hooks
             --distpath {path_to_pyi_dist}
-            --hidden-import strictdoc.api
-            --hidden-import strictdoc.backend.rst.strictdoc_lexer
-            --hidden-import strictdoc.core.statistics.metric
-            --hidden-import strictdoc.export.html.generators.project_statistics
-            --hidden-import strictdoc.export.html.generators.view_objects.project_statistics_view_object
-            --hidden-import strictdoc.export.html.generators.view_objects.project_tree_stats
-            --hidden-import strictdoc.server.app
-            {html_template_data_options}
-            {html_static_data_options}
-            --add-data strictdoc/backend/rst/templates:templates/rst
-            strictdoc/cli/main.py
+            --workpath build/pyinstaller
+            scripts/strictdoc.spec
     """
 
     run_invoke_with_uv(
@@ -1175,6 +1205,42 @@ def release_pyinstaller(context):
     )
 
     run_invoke_with_uv(context, UvEnvironment.PYINSTALLER, command)
+
+    if platform.system() == "Darwin":
+        # The spec writes StrictDoc.app next to the onedir. Move it in so
+        # the zip contains the app. The leftover strictdoc-app COLLECT is
+        # only a build input of BUNDLE.
+        path_to_app = os.path.join(path_to_pyi_dist, "StrictDoc.app")
+        path_to_app_in_bundle = os.path.join(
+            path_to_pyi_dist, "strictdoc", "StrictDoc.app"
+        )
+        if os.path.isdir(path_to_app):
+            if os.path.exists(path_to_app_in_bundle):
+                shutil.rmtree(path_to_app_in_bundle)
+            shutil.move(path_to_app, path_to_app_in_bundle)
+        path_to_app_collect = os.path.join(path_to_pyi_dist, "strictdoc-app")
+        if os.path.isdir(path_to_app_collect):
+            shutil.rmtree(path_to_app_collect)
+
+    launcher_name = (
+        "strictdoc_launcher.exe" if os.name == "nt" else "strictdoc_launcher"
+    )
+    path_to_launcher = os.path.join(
+        path_to_pyi_dist, "strictdoc", launcher_name
+    )
+    if not os.path.isfile(path_to_launcher):
+        raise RuntimeError(
+            f"release-pyinstaller: missing launcher {path_to_launcher}"
+        )
+
+    platform_name = f"{platform.system()}-{platform.machine()}".lower()
+    zip_base_name = os.path.join(
+        path_to_pyi_dist, f"strictdoc-{__version__}-{platform_name}"
+    )
+    zip_path = shutil.make_archive(
+        zip_base_name, "zip", root_dir=path_to_pyi_dist, base_dir="strictdoc"
+    )
+    print(f"release-pyinstaller: {zip_path}")  # noqa: T201
 
 
 @task
@@ -1332,7 +1398,7 @@ def test_docker(context, image: str = "strictdoc:latest"):
         return file_owner == current_user
 
     assert check_file_owner(
-        "output/html2pdf/pdf/docs/strictdoc_01_user_guide.pdf"
+        "output/html2pdf/pdf/docs/strictdoc_01_user_guide.sdoc.pdf"
     )
 
 
