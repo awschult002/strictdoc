@@ -50,11 +50,11 @@ releases:
 <<<
 
 [[SECTION]]
-MID: 075053bdc64242158c67f8041d272ac8
+MID: 47316fcefedf4760b658efaee7230ef5
 TITLE: Unreleased
 
 [TEXT]
-MID: 310b180b4d87405783f7bbeddc7ec811
+MID: badd2ebb98d946668d19ce23884e6e08
 STATEMENT: >>>
 This release contains the following enhancements:
 
@@ -65,10 +65,11 @@ launcher then starts the server on a free port and opens the project in the
 browser. When the launcher closes, it stops the server and all processes that
 the server started.
 
-2\) The PyInstaller bundle now contains the desktop launcher as a separate
+2\) The PyInstaller zip now contains the desktop launcher as a separate
 executable: ``strictdoc_launcher.exe`` on Windows (without a console window),
 ``StrictDoc.app`` on macOS and ``strictdoc_launcher`` on Linux. The
-``strictdoc`` command-line executable does not change.
+``strictdoc`` command-line executable does not change. The zip is built with
+``invoke release-pyinstaller``.
 
 3\) On the DOCUMENT and TRACE screens, hovering over or focusing a relation
 link now shows a card about the link target. For a Parent or Child link, with
@@ -98,6 +99,52 @@ ChromeDriver cache now succeed. Before, one export could overwrite the
 ChromeDriver while another export was running it, and the export failed with
 "Text file busy" on Linux. StrictDoc now uses html2pdf4doc 0.0.36, which
 caches the downloaded ChromeDriver atomically.
+
+7\) Fixed: the HTML export now copies an asset file again if the file in the
+output folder has a different size than the source file. Before, StrictDoc
+compared only the modification times. As a result, StrictDoc kept an outdated
+file in the output folder if the source file was not newer, for example after
+an interrupted export.
+
+8\) StrictDoc starts faster. StrictDoc now imports the Python packages of an
+export format, a project feature, or a command only on first use. For example,
+an HTML export no longer loads the packages of the Excel, SPDX, ReqIF, and
+HTML2PDF formats. The commands other than ``server`` no longer load the web
+server packages. On a project with one document, an HTML export takes about
+half as long as before.
+
+9\) A small project exports faster. StrictDoc now reads and exports fewer than
+five documents in its own process. Before, StrictDoc started a worker process
+for each CPU core, even for a single document. The start of these worker
+processes took longer than the parallel export saved.
+
+10\) StrictDoc finds documents and source files faster in a large project
+folder. If all paths in ``include_doc_paths`` or ``include_source_paths``
+start with ``/``, StrictDoc no longer searches the folders outside these paths,
+for example ``build/``, ``.venv/``, or ``node_modules/``. In a development
+checkout of StrictDoc with build output, the search for source files now checks
+about 7,500 files instead of more than 200,000. StrictDoc finds the same files
+as before.
+
+11\) The ``server`` command starts faster. The server now imports the packages
+for ReqIF, HTML2PDF, and the Markdown writer only when a user first imports or
+exports ReqIF, exports a PDF, or saves a Markdown document. Before, the server
+imported these packages at startup, which took about a fifth of its startup
+time.
+
+12\) StrictDoc now uses html2pdf4doc 0.1.0, which contains the html2pdf4doc JS
+release 0.4.0. The HTML2PDF export gets the following fixes:
+
+- No empty pages when several page break rules match one element, when the
+  content starts with a zero-height element, or when a hidden element follows
+  a page break.
+- A table row taller than a page no longer hangs the export.
+- A table footer appears once, in the last part of the table.
+- Images at the start of a page no longer overflow the page.
+- Before the page layout, html2pdf4doc waits up to 2 seconds for images and
+  other resources to load.
+
+Some documents can get different page breaks and a different page count.
 <<<
 
 [[/SECTION]]
